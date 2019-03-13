@@ -1,0 +1,164 @@
+{
+  "schemaVersion": "0.3",
+  "assumeRole": "{{AutomationAssumeRole}}",
+  "description": "Creates an association for specified instances",
+  "parameters": {
+    "InstanceIds": {
+      "type": "String",
+      "description": "(Required) EC2 Instance(s) to associate",
+      "default": "*"
+    },
+    "AssociationName": {
+      "default": "",
+      "type": "String",
+      "description": "(Optional) The string applied to the emergent Association value's AssociationName property."
+    },
+    "AssociatedDocName": {
+      "default": "AWS-GatherSoftwareInventory",
+      "type": "String",
+      "description": "(Optional) The name of the Document with which the process associates the EC-2 instances"
+    },
+    "Schedule": {
+      "default": "cron(0 */30 * * * ? *)",
+      "type": "String",
+      "description": "(Optional) serialized cron expression applied to resultant Association"
+    },
+    "AssocWaitTime": {
+      "default": "PT5M",
+      "type": "String",
+      "description": "(Optional) 8601 Duration of the pause following the beginning of the association process."
+    },
+    "AutomationAssumeRole": {
+      "default": "",
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf."
+    },
+    "LambdaAssumeRole": {
+      "default": "",
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Lambda created by Automation to perform the actions on your behalf. If not specified a transient role will be created to execute the Lambda function."
+    },
+    "Applications": {
+      "type": "String",
+      "description": "(Optional) Collect data for installed applications.",
+      "default": "Enabled"
+    },
+    "AwsComponents": {
+      "type": "String",
+      "description": "(Optional) Collect data for AWS Components like amazon-ssm-agent.",
+      "default": "Enabled"
+    },
+    "Files": {
+      "type": "String",
+      "description": "(Optional) (Requires SSMAgent version 2.2.64.0 and above) Linux example: [{\"Path\":\"/usr/bin\", \"Pattern\":[\"aws*\", \"*ssm*\"],\"Recursive\":false},{\"Path\":\"/var/log\", \"Pattern\":[\"amazon*.*\"], \"Recursive\":true, \"DirScanLimit\":1000}] Windows example: [{\"Path\":\"%PROGRAMFILES%\", \"Pattern\":[\"*.exe\"],\"Recursive\":true}]",
+      "default": ""
+    },
+    "NetworkConfig": {
+      "type": "String",
+      "description": "(Optional) Collect data for Network configurations.",
+      "default": "Enabled"
+    },
+    "WindowsUpdates": {
+      "type": "String",
+      "description": "(Optional, Windows OS only) Collect data for all Windows Updates.",
+      "default": "Enabled"
+    },
+    "InstanceDetailedInformation": {
+      "type": "String",
+      "description": "(Optional) Collect additional information about the instance, including the CPU model, speed, and the number of cores, to name a few.",
+      "default": "Enabled"
+    },
+    "Services": {
+      "type": "String",
+      "description": "(Optional, Windows OS only, requires SSMAgent version 2.2.64.0 and above) Collect data for service configurations.",
+      "default": "Enabled"
+    },
+    "WindowsRegistry": {
+      "type": "String",
+      "description": "(Optional) (Windows OS only, requires SSMAgent version 2.2.64.0 and above) Example: [ {\"Path\":\"HKEY_CURRENT_CONFIG\\System\",\"Recursive\":true},{\"Path\":\"HKEY_LOCAL_MACHINE\\SOFTWARE\\Amazon\\MachineImage\", \"ValueNames\":[\"AMIName\"]}]",
+      "default": ""
+    },
+    "WindowsRoles": {
+      "type": "String",
+      "description": "(Optional, Windows OS only, requires SSMAgent version 2.2.64.0 and above) Collect data for Microsoft Windows role configurations.",
+      "default": "Enabled"
+    },
+    "CustomInventory": {
+      "type": "String",
+      "description": "(Optional) Collect data for custom inventory.",
+      "default": "Enabled"
+    },
+    "OutputS3BucketName": {
+      "type": "String",
+      "description": "(Optional) Destination BucketName of the S3Location into which logs will be written",
+      "default": ""
+    },
+    "OutputS3KeyPrefix": {
+      "type": "String",
+      "description": "(Optional) Destination KeyPrefix of the S3 Location into which logs will be written",
+      "default": ""
+    },
+    "OutputS3Region": {
+      "type": "String",
+      "description": "(Optional) Destination Region of the S3 Location into which logs will be written",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "createDocumentStack",
+      "action": "aws:createStack",
+      "inputs": {
+        "Capabilities": [
+          "CAPABILITY_IAM"
+        ],
+        "StackName": "SetupInventoryStack{{automation:EXECUTION_ID}}",
+        "Parameters": [
+          {
+            "ParameterKey": "LambdaRoleArn",
+            "ParameterValue": "{{LambdaAssumeRole}}"
+          },
+          {
+            "ParameterKey": "SetupLambdaName",
+            "ParameterValue": "SetupInventoryLambda-{{automation:EXECUTION_ID}}"
+          },
+          {
+            "ParameterKey": "VerifyLambdaName",
+            "ParameterValue": "VerifyInventoryLambda-{{automation:EXECUTION_ID}}"
+          }
+        ],
+        "TemplateBody": "AWSTemplateFormatVersion: '2010-09-09'\nConditions:\n  LambdaAssumeRoleNotSpecified:\n    Fn::Or:\n    - Fn::Equals:\n      - {Ref: LambdaRoleArn}\n      - ''\n    - Fn::Equals:\n      - {Ref: LambdaRoleArn}\n      - undefined\nDescription: Automation Stack for SetupInventory\nParameters:\n  LambdaRoleArn: {Default: '', Description: 'The ARN of the role that allows Lambda\n      created by Automation to perform the action on your behalf\n\n      ', Type: String}\n  SetupLambdaName: {Description: 'The primary setup Lambda function name\n\n      ', Type: String}\n  VerifyLambdaName: {Description: 'The end-state verification Lambda function name\n\n      ', Type: String}\nResources:\n  LambdaRole:\n    Condition: LambdaAssumeRoleNotSpecified\n    Properties:\n      AssumeRolePolicyDocument:\n        Statement:\n        - Action: ['sts:AssumeRole']\n          Effect: Allow\n          Principal:\n            Service: [lambda.amazonaws.com]\n        Version: '2012-10-17'\n      Path: /\n      Policies:\n      - PolicyDocument:\n          Statement:\n            Action: ['ssm:CreateAssociation', 'ssm:DescribeAssociation', 'iam:GetRole']\n            Effect: Allow\n            Resource: '*'\n          Version: '2012-10-17'\n        PolicyName: SetupInventoryLambdaPolicy\n    Type: AWS::IAM::Role\n  SetupInventoryLambda:\n    Properties:\n      Code: {ZipFile: \"#\\n# Copyright 2018 Amazon.com, Inc. or its affiliates. All\\\n          \\ Rights Reserved.\\n#\\n# Permission is hereby granted, free of charge, to\\\n          \\ any person obtaining a copy of this\\n# software and associated documentation\\\n          \\ files (the \\\"Software\\\"), to deal in the Software\\n# without restriction,\\\n          \\ including without limitation the rights to use, copy, modify,\\n# merge,\\\n          \\ publish, distribute, sublicense, and/or sell copies of the Software, and\\\n          \\ to\\n# permit persons to whom the Software is furnished to do so.\\n#\\n\\\n          # THE SOFTWARE IS PROVIDED \\\"AS IS\\\", WITHOUT WARRANTY OF ANY KIND, EXPRESS\\\n          \\ OR IMPLIED,\\n# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\\\n          \\ FITNESS FOR A\\n# PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL\\\n          \\ THE AUTHORS OR COPYRIGHT\\n# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR\\\n          \\ OTHER LIABILITY, WHETHER IN AN ACTION\\n# OF CONTRACT, TORT OR OTHERWISE,\\\n          \\ ARISING FROM, OUT OF OR IN CONNECTION WITH THE\\n# SOFTWARE OR THE USE\\\n          \\ OR OTHER DEALINGS IN THE SOFTWARE.\\n#\\nimport boto3\\n\\n\\ndef handler(event,\\\n          \\ context):\\n\\tssm_client = boto3.client('ssm')\\n\\tinstance_ids = event[\\\"\\\n          InstanceIds\\\"].strip().split(',')\\n\\n\\ttargets_cfg = [{'Key': 'InstanceIds',\\\n          \\ 'Values': instance_ids}]\\n\\n\\tis_association_named = False\\n\\tis_destination_specified\\\n          \\ = False\\n\\n\\tif \\\"AssociationName\\\" in event:\\n\\t\\tif len(event[\\\"AssociationName\\\"\\\n          ]) > 0:\\n\\t\\t\\tis_association_named = True\\n\\n\\tif len(event[\\\"OutputS3BucketName\\\"\\\n          ]) > 0 and len(event[\\\"OutputS3Region\\\"]) > 0:\\n\\t\\ts3_location = {\\n\\t\\t\\\n          \\t'OutputS3Region': event['OutputS3Region'],\\n\\t\\t\\t'OutputS3BucketName':\\\n          \\ event['OutputS3BucketName'],\\n\\t\\t\\t'OutputS3KeyPrefix': event['OutputS3KeyPrefix']\\n\\\n          \\t\\t}\\n\\t\\tis_destination_specified = True\\n\\n\\tgather_inventory_params\\\n          \\ = {\\n\\t\\t\\\"applications\\\": [event[\\\"Applications\\\"]],\\n\\t\\t\\\"awsComponents\\\"\\\n          : [event[\\\"AwsComponents\\\"]],\\n\\t\\t\\\"files\\\": [event[\\\"Files\\\"]],\\n\\t\\t\\\"\\\n          networkConfig\\\": [event[\\\"NetworkConfig\\\"]],\\n\\t\\t\\\"windowsUpdates\\\": [event[\\\"\\\n          WindowsUpdates\\\"]],\\n\\t\\t\\\"instanceDetailedInformation\\\": [event[\\\"InstanceDetailedInformation\\\"\\\n          ]],\\n\\t\\t\\\"services\\\": [event[\\\"Services\\\"]],\\n\\t\\t\\\"windowsRegistry\\\":\\\n          \\ [event[\\\"WindowsRegistry\\\"]],\\n\\t\\t\\\"windowsRoles\\\": [event[\\\"WindowsRoles\\\"\\\n          ]],\\n\\t\\t\\\"customInventory\\\": [event[\\\"CustomInventory\\\"]]\\n\\t}\\n\\n\\tassociation_config\\\n          \\ = {\\n\\t\\t\\\"Name\\\": event[\\\"AssociatedDocName\\\"],\\n\\t\\t\\\"Targets\\\": targets_cfg,\\n\\\n          \\t\\t\\\"ScheduleExpression\\\": event[\\\"Schedule\\\"],\\n\\t\\t\\\"Parameters\\\": gather_inventory_params\\n\\\n          \\t}\\n\\n\\tif is_destination_specified:\\n\\t\\tassociation_config[\\\"OutputLocation\\\"\\\n          ] = { \\\"S3Location\\\": s3_location }\\n\\n\\tif is_association_named:\\n\\t\\t\\\n          association_config[\\\"AssociationName\\\"] = event[\\\"AssociationName\\\"]\\n\\n\\\n          \\tcreation_response = ssm_client.create_association(**association_config)\\n\\\n          \\n\\treturn {\\n\\t\\t\\\"AssociationId\\\": creation_response[\\\"AssociationDescription\\\"\\\n          ][\\\"AssociationId\\\"]\\n\\t}\\n\"}\n      FunctionName: {Ref: SetupLambdaName}\n      Handler: index.handler\n      MemorySize: 128\n      Role:\n        Fn::If:\n        - LambdaAssumeRoleNotSpecified\n        - Fn::GetAtt: [LambdaRole, Arn]\n        - {Ref: LambdaRoleArn}\n      Runtime: python2.7\n      Timeout: 60\n    Type: AWS::Lambda::Function\n  VerifyInventoryLambda:\n    Properties:\n      Code: {ZipFile: \"#\\n# Copyright 2018 Amazon.com, Inc. or its affiliates. All\\\n          \\ Rights Reserved.\\n#\\n# Permission is hereby granted, free of charge, to\\\n          \\ any person obtaining a copy of this\\n# software and associated documentation\\\n          \\ files (the \\\"Software\\\"), to deal in the Software\\n# without restriction,\\\n          \\ including without limitation the rights to use, copy, modify,\\n# merge,\\\n          \\ publish, distribute, sublicense, and/or sell copies of the Software, and\\\n          \\ to\\n# permit persons to whom the Software is furnished to do so.\\n#\\n\\\n          # THE SOFTWARE IS PROVIDED \\\"AS IS\\\", WITHOUT WARRANTY OF ANY KIND, EXPRESS\\\n          \\ OR IMPLIED,\\n# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\\\n          \\ FITNESS FOR A\\n# PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL\\\n          \\ THE AUTHORS OR COPYRIGHT\\n# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR\\\n          \\ OTHER LIABILITY, WHETHER IN AN ACTION\\n# OF CONTRACT, TORT OR OTHERWISE,\\\n          \\ ARISING FROM, OUT OF OR IN CONNECTION WITH THE\\n# SOFTWARE OR THE USE\\\n          \\ OR OTHER DEALINGS IN THE SOFTWARE.\\n#\\nimport boto3\\n\\n\\ndef handler(event,\\\n          \\ context):\\n\\tssm_client = boto3.client('ssm')\\n\\tpending_assoc_id = event[\\\"\\\n          Setup\\\"][\\\"AssociationId\\\"]\\n\\n\\tdesc = ssm_client.describe_association(\\n\\\n          \\t\\tAssociationId=pending_assoc_id\\n\\t)[\\\"AssociationDescription\\\"]\\n\\n\\t\\\n          overview_status = desc[\\\"Overview\\\"][\\\"Status\\\"]\\n\\tif overview_status ==\\\n          \\ \\\"Success\\\":\\n\\t\\treturn \\\"Success\\\"\\n\\tif overview_status == \\\"Pending\\\"\\\n          :\\n\\t\\traise ValueError(\\\"Association failed to manifest within allocated\\\n          \\ time limit; status still Pending\\\")\\n\\tif overview_status == \\\"Failure\\\"\\\n          :\\n\\t\\traise ValueError(\\\"Association failed outright; status explicitly\\\n          \\ reports FAILURE\\\")\\n\\n\\t# Passive, presumed failure in the absence of\\\n          \\ evidence of success\\n\\traise ValueError(\\\"Association failed to manifest\\\n          \\ within allocated time limit; status was\\\")\\n\"}\n      FunctionName: {Ref: VerifyLambdaName}\n      Handler: index.handler\n      MemorySize: 128\n      Role:\n        Fn::If:\n        - LambdaAssumeRoleNotSpecified\n        - Fn::GetAtt: [LambdaRole, Arn]\n        - {Ref: LambdaRoleArn}\n      Runtime: python2.7\n      Timeout: 60\n    Type: AWS::Lambda::Function\n"
+      }
+    },
+    {
+      "name": "setupInventory",
+      "action": "aws:invokeLambdaFunction",
+      "inputs": {
+        "FunctionName": "SetupInventoryLambda-{{automation:EXECUTION_ID}}",
+        "Payload": "{\"InstanceIds\": \"{{InstanceIds}}\", \"AssociationName\": \"{{AssociationName}}\", \"Schedule\": \"{{Schedule}}\", \"AssociatedDocName\": \"{{AssociatedDocName}}\", \"Applications\": \"{{Applications}}\", \"AwsComponents\": \"{{AwsComponents}}\", \"Files\": \"{{Files}}\", \"NetworkConfig\": \"{{NetworkConfig}}\", \"WindowsUpdates\": \"{{WindowsUpdates}}\", \"InstanceDetailedInformation\": \"{{InstanceDetailedInformation}}\", \"Services\": \"{{Services}}\", \"WindowsRegistry\": \"{{WindowsRegistry}}\", \"WindowsRoles\": \"{{WindowsRoles}}\", \"CustomInventory\": \"{{CustomInventory}}\", \"OutputS3BucketName\": \"{{OutputS3BucketName}}\", \"OutputS3KeyPrefix\": \"{{OutputS3KeyPrefix}}\", \"OutputS3Region\": \"{{OutputS3Region}}\"}"
+      }
+    },
+    {
+      "name": "SleepToCompleteAssociation",
+      "action": "aws:sleep",
+      "inputs": {
+        "Duration": "{{AssocWaitTime}}"
+      }
+    },
+    {
+      "name": "verifyInventory",
+      "action": "aws:invokeLambdaFunction",
+      "inputs": {
+        "FunctionName": "VerifyInventoryLambda-{{automation:EXECUTION_ID}}",
+        "Payload": "{\"Setup\": {{setupInventory.Payload}}}"
+      }
+    },
+    {
+      "name": "deleteCloudFormationTemplate",
+      "action": "aws:deleteStack",
+      "inputs": {
+        "StackName": "SetupInventoryStack{{automation:EXECUTION_ID}}"
+      }
+    }
+  ]
+}

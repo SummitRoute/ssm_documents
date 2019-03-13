@@ -1,0 +1,60 @@
+{
+  "description": "Reboot RDS Instance",
+  "schemaVersion": "0.3",
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "parameters": {
+    "InstanceId": {
+      "type": "String",
+      "description": "(Required) Identifies the *RDS* instance subject to action."
+    },
+    "AutomationAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf.",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "AssertNotRebooting",
+      "action": "aws:assertAwsResourceProperty",
+      "isCritical": false,
+      "onFailure": "step:RebootInstance",
+      "nextStep": "WaitForAvailableState",
+      "inputs": {
+        "Service": "rds",
+        "Api": "DescribeDBInstances",
+        "DBInstanceIdentifier": "{{InstanceId}}",
+        "PropertySelector": "$.DBInstances[0].DBInstanceStatus",
+        "DesiredValues": [
+          "rebooting"
+        ]
+      }
+    },
+    {
+      "name": "RebootInstance",
+      "action": "aws:executeAwsApi",
+      "inputs": {
+        "Service": "rds",
+        "Api": "RebootDBInstance",
+        "DBInstanceIdentifier": "{{InstanceId}}"
+      }
+    },
+    {
+      "name": "WaitForAvailableState",
+      "action": "aws:waitForAwsResourceProperty",
+      "maxAttempts": 10,
+      "timeoutSeconds": 600,
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "rds",
+        "Api": "DescribeDBInstances",
+        "DBInstanceIdentifier": "{{InstanceId}}",
+        "PropertySelector": "$.DBInstances[0].DBInstanceStatus",
+        "DesiredValues": [
+          "available"
+        ]
+      },
+      "isEnd": true
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "description": "Release ElasticIP",
+  "schemaVersion": "0.3",
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "parameters": {
+    "AllocationId": {
+      "type": "String",
+      "description": "(Required) The Allocation ID of the Elastic IP address."
+    },
+    "AutomationAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf.",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "ReleaseElasticIp",
+      "action": "aws:executeAwsApi",
+      "inputs": {
+        "Service": "ec2",
+        "Api": "ReleaseAddress",
+        "AllocationId": "{{AllocationId}}"
+      }
+    }
+  ]
+}

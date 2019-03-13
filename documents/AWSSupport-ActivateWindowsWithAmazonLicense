@@ -1,0 +1,409 @@
+{
+  "schemaVersion": "0.3",
+  "description": "Activates an EC2 Windows Server with the Amazon-provided license. If Windows is not activated, the document verifies, and when needed repairs, the Windows route table (route to Amazon KMS servers), the KMS settings (server and port), and attempts to activate Windows. Note: this document cannot be used on Bring Your Own License (BYOL) Windows instances. If you want to bring your own license, please review https://aws.amazon.com/windows/resources/licensing/.",
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "parameters": {
+    "InstanceId": {
+      "type": "String",
+      "description": "(Required) ID of your EC2 Windows managed instance.",
+      "allowedPattern": "^[m]{0,1}i-[a-z0-9]{8,17}$"
+    },
+    "ForceActivation": {
+      "type": "String",
+      "description": "(Optional) Set it to True if you want to proceed even if Windows is already activated.",
+      "default": "False",
+      "allowedValues": [
+        "True",
+        "False"
+      ]
+    },
+    "AllowOffline": {
+      "type": "String",
+      "description": "(Optional) Set it to true if you allow an offline Windows activation remediation in case the online troubleshooting fails, or the provided instance is not a managed instance. Note: The offline method requires the provided EC2 instance be stopped and then started. Data stored in instance store volumes will be lost. The public IP address will change if you are not using an Elastic IP.",
+      "default": "False",
+      "allowedValues": [
+        "True",
+        "False"
+      ]
+    },
+    "SubnetId": {
+      "type": "String",
+      "description": "(Optional) Offline only - The subnet ID for the EC2Rescue instance used to perform the offline troubleshooting. Use SelectedInstanceSubnet to use the same subnet as your instance, or CreateNewVPC to create a new VPC. IMPORTANT: The subnet must be in the same Availability Zone as InstanceId, and it must allow access to the SSM endpoints.",
+      "default": "CreateNewVPC",
+      "allowedPattern": "^SelectedInstanceSubnet$|^CreateNewVPC$|^subnet-[a-z0-9]{8,17}$"
+    },
+    "AutomationAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The IAM role for this execution. If no role is specified, AWS Systems Manager Automation will use the permissions of the user that executes this document.",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "assertInstanceIsWindows",
+      "action": "aws:assertAwsResourceProperty",
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "ec2",
+        "Api": "DescribeInstances",
+        "InstanceIds": [
+          "{{ InstanceId }}"
+        ],
+        "PropertySelector": "$.Reservations[0].Instances[0].Platform",
+        "DesiredValues": [
+          "windows"
+        ]
+      },
+      "isCritical": "true",
+      "nextStep": "assertInstanceIsManagedInstance"
+    },
+    {
+      "name": "assertInstanceIsManagedInstance",
+      "action": "aws:assertAwsResourceProperty",
+      "onFailure": "step:assertAllowOffline",
+      "inputs": {
+        "Service": "ssm",
+        "Api": "DescribeInstanceInformation",
+        "InstanceInformationFilterList": [
+          {
+            "key": "InstanceIds",
+            "valueSet": [
+              "{{ InstanceId }}"
+            ]
+          }
+        ],
+        "PropertySelector": "$.InstanceInformationList[0].PingStatus",
+        "DesiredValues": [
+          "Online"
+        ]
+      },
+      "isCritical": "false",
+      "nextStep": "activateWindows"
+    },
+    {
+      "name": "activateWindows",
+      "action": "aws:runCommand",
+      "onFailure": "Abort",
+      "inputs": {
+        "DocumentName": "AWS-RunPowerShellScript",
+        "InstanceIds": [
+          "{{ InstanceId }}"
+        ],
+        "Parameters": {
+          "commands": [
+            "function Get-KMSKey { ",
+            "    Param( ",
+            "        [parameter(Mandatory = $true)] ",
+            "        [String] $OSVersion ",
+            "    ) ",
+            "    #https://docs.microsoft.com/en-us/windows-server/get-started/kmsclientkeys ",
+            "    $KMSLicenseKeys = @{ ",
+            "        \"2008-STANDARD\"          = \"W7VD6-7JFBR-RX26B-YKQ3Y-6FFFJ\"; ",
+            "        \"2008-STANDARD-HYPERV\"   = \"TM24T-X9RMF-VWXK6-X8JC9-BFGM2\"; ",
+            "        \"2008-ENTERPRISE\"        = \"39BXF-X8Q23-P2WWT-38T2F-G3FPG\"; ",
+            "        \"2008-ENTERPRISE-HYPERV\" = \"YQGMW-MPWTJ-34KDK-48M3W-X4Q6V\"; ",
+            "        \"2008-DATACENTER\"        = \"22XQ2-VRXRG-P8D42-K34TD-G3QQC\"; ",
+            "        \"2008-DATACENTER-HYPERV\" = \"7M67G-PC374-GR742-YH8V4-TCBY3\"; ",
+            " ",
+            "        \"2008R2-STANDARD\"        = \"YC6KT-GKW9T-YTKYR-T4X34-R7VHC\"; ",
+            "        \"2008R2-ENTERPRISE\"      = \"489J6-VHDMP-X63PK-3K798-CPX3Y\"; ",
+            "        \"2008R2-DATACENTER\"      = \"74YFP-3QFB3-KQT8W-PMXWJ-7M648\"; ",
+            " ",
+            "        \"2012-STANDARD\"          = \"XC9B7-NBPP2-83J2H-RHMBY-92BT4\"; ",
+            "        \"2012-DATACENTER\"        = \"48HP8-DN98B-MYWDG-T2DCC-8W83P\"; ",
+            " ",
+            "        \"2012R2-STANDARD\"        = \"D2N9P-3P6X9-2R39C-7RTCD-MDVJX\"; ",
+            "        \"2012R2-DATACENTER\"      = \"W3GGN-FT8W3-Y4M27-J84CP-Q3VJ9\"; ",
+            " ",
+            "        \"2016-DATACENTER\"        = \"CB7KF-BWN84-R7R2Y-793K2-8XDDG\"; ",
+            "        \"2016-STANDARD\"          = \"WC2BQ-8NRM3-FDDYY-2BFGV-KHKQY\"; ",
+            "        \"2016-ESSENTIALS\"        = \"JCKRF-N37P4-C2D82-9YXRT-4M63B\"; ",
+            " ",
+            "        \"2019-DATACENTER\"        = \"WMDGN-G9PQG-XVVXX-R3X43-63DFG\"; ",
+            "        \"2019-STANDARD\"          = \"N69G4-B89J2-4G8F4-WWYCC-J464C\"; ",
+            "        \"2019-ESSENTIALS\"        = \"WVDHN-86M7X-466P6-VHXV7-YY726\"; ",
+            " ",
+            "        # Windows Server, version 1709 ",
+            "        \"10.0.16299-DATACENTER\"  = \"6Y6KB-N82V8-D8CQV-23MJW-BWTG6\"; ",
+            "        \"10.0.16299-STANDARD\"    = \"DPCNP-XQFKJ-BJF7R-FRC8D-GF6G4\"; ",
+            "        # Windows Server, version 1803 ",
+            "        \"10.0.17134-DATACENTER\"  = \"2HXDN-KRXHB-GPYC7-YCKFJ-7FVDG\"; ",
+            "        \"10.0.17134-STANDARD\"    = \"PTXN8-JFHJM-4WC78-MPCBR-9W4KR\"; ",
+            "        # Windows Server, version 1809 ",
+            "        \"10.0.17763-DATACENTER\"  = \"6NMRW-2C8FM-D24W7-TQWMY-CWH2D\"; ",
+            "        \"10.0.17763-STANDARD\"    = \"N2KJX-J94YW-TQVFB-DG9YT-724CC\"; ",
+            " ",
+            "    } ",
+            " ",
+            "    $productName = $OSVersion.toUpper() ",
+            "    $matchstr = \"Standard|Enterprise|Datacenter|Professional|Education|Essentials\".ToUpper() ",
+            "    $verstr = \"2008 R2|2008|2012 R2|2012|2016|2019\" ",
+            "    $productname -match $verstr | Out-Null ",
+            "    if ($matches) { ",
+            "        $winVer = $matches[0].Replace(\" \", \"\") ",
+            "    } ",
+            "    else { ",
+            "        #https://docs.microsoft.com/en-us/windows-server/get-started/windows-server-release-info ",
+            "        $winVer = (Get-WMIObject -Class Win32_OperatingSystem -Property Version).Version ",
+            "    } ",
+            "    $productname -match $matchstr | Out-Null ",
+            "    $prodtype = $matches[0] ",
+            "    $keyname = $winVer + \"-\" + $prodtype ",
+            "    if ($winVer = \"2008\") { ",
+            "        #Only 2008 has with and without hyper-v flavors. ",
+            "        if (test-path 'HKLM:\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Hyper-V') { ",
+            "            $keyname = $keyname + \"-HYPERV\" ",
+            "        } ",
+            "    } ",
+            "    if ($null -ne $KMSLicenseKeys[$keyname]) { ",
+            "        $key = $KMSLicenseKeys[$keyname] ",
+            "        return $key ",
+            "         ",
+            "    } ",
+            "    else {throw \"No KMS key found for $OSVersion!\"} ",
+            "} ",
+            " ",
+            "function Test-ActivationStatus { ",
+            " ",
+            "    $status = Get-WMIObject SoftwareLicensingProduct -Filter \"ApplicationID = '55c92734-d682-4d71-983e-d6ec3f16059f'\" | Where-Object { $_.licensestatus -eq 1 } ",
+            "    if ($status) { ",
+            "        return $true ",
+            "    } ",
+            "    else { ",
+            "        return $false ",
+            "    } ",
+            " ",
+            "} ",
+            " ",
+            "function Test-KMSReachability { ",
+            "    Param( ",
+            "        [parameter(Mandatory = $true)] ",
+            "        [String] $KMSServer, ",
+            "        [parameter(Mandatory = $false)] ",
+            "        [Int32]    $KMSPort = 1688 ",
+            "    ) ",
+            " ",
+            "    try { ",
+            "        New-Object System.Net.Sockets.TCPClient -ArgumentList $KMSServer, $KMSPort | Out-Null ",
+            "        return $true ",
+            "    } ",
+            "    catch { ",
+            "        return $false ",
+            "    } ",
+            " ",
+            "} ",
+            " ",
+            "function Test-SupportedOS { ",
+            " ",
+            "    # Check if the instance OS is 2008 and above ",
+            "    $currentVersion = [System.Environment]::OSVersion.Version ",
+            "    $minimumVersion = [System.Version] \"6.0\" ",
+            "    if ($currentVersion -ge $minimumVersion) { ",
+            "        return $true ",
+            "    } ",
+            "    else { ",
+            "        return $false ",
+            "    } ",
+            " ",
+            "} ",
+            " ",
+            "function Get-PrimaryInterface { ",
+            " ",
+            "    $macAddress = (Invoke-RestMethod -Uri \"http://169.254.169.254/latest/meta-data/mac\") ",
+            "    $adapter = Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object { $_.MACAddress -eq $macAddress } ",
+            "    $primaryNIC = Get-WMIObject -Class Win32_IP4RouteTable | Where-Object { $_.InterfaceIndex -eq $adapter.InterfaceIndex -and $_.destination -eq \"0.0.0.0\" -and $_.mask -eq \"0.0.0.0\"} |  Sort-Object Metric1 | Select-Object NextHop, InterfaceIndex ",
+            "    return $primaryNIC ",
+            " ",
+            "} ",
+            " ",
+            "function Repair-AWSRoute { ",
+            "    Param( ",
+            "        [parameter(Mandatory = $true)] ",
+            "        [String] $Destination ",
+            "    ) ",
+            " ",
+            "    $primaryInterface = Get-PrimaryInterface ",
+            " ",
+            "    $currentRoute = Get-WMIObject -Class Win32_IP4RouteTable | Where-Object {$_.Name -eq $Destination -and $_.Mask -eq \"255.255.255.255\" -and $_.NextHop -eq $primaryInterface.NextHop} ",
+            "    if ($currentRoute) { ",
+            "        Write-Output (\"There is already a route to \" + $Destination + \". Skipping\") ",
+            "    } ",
+            "    else { ",
+            "        Write-Output (\"Adding a route to \" + $Destination + \".\") ",
+            "        & \"${env:SYSTEMROOT}\\system32\\route.exe\" -P ADD $Destination MASK 255.255.255.255 $primaryInterface.NextHop METRIC \"25\" IF $primaryInterface.InterfaceIndex > $null ",
+            "    } ",
+            " ",
+            "    $wrongRoute = Get-WMIObject -Class Win32_IP4RouteTable | Where-Object {$_.Name -eq $Destination -and $_.Mask -eq \"255.255.255.255\" -and -not ($_.NextHop -eq $primaryInterface.NextHop)} ",
+            "    if ($wrongRoute) { ",
+            "        Write-Output (\"Removing incorrect route to \" + $Destination + \".\") ",
+            "        & \"${env:SYSTEMROOT}\\system32\\route.exe\" DELETE $Destination MASK 255.255.255.255 $wrongRoute.NextHop  > $null ",
+            "    } ",
+            " ",
+            "} ",
+            " ",
+            "function Repair-KMSSetting { ",
+            "    Param( ",
+            "        [parameter(Mandatory = $true)] ",
+            "        [String] $KMSServer, ",
+            "        [parameter(Mandatory = $true)] ",
+            "        [Int32]    $KMSPort = 1688 ",
+            "    ) ",
+            " ",
+            "    $key = \"HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\SoftwareProtectionPlatform\" ",
+            "    $currentKMSSettings = (Get-ItemProperty -Path $key) ",
+            "    $kmsServiceName = $currentKMSSettings.KeyManagementServiceName ",
+            "    $kmsServicePort = $currentKMSSettings.KeyManagementServicePort ",
+            "    if ($kmsServiceName -eq $KMSServer) { ",
+            "        Write-Output (\"$key\\KeyManagementServiceName is already \" + $KMSServer + \". Skipping.\") ",
+            "    } ",
+            "    else { ",
+            "        Write-Output (\"Setting $key\\KeyManagementServiceName to \" + $KMSServer + \".\") ",
+            "        New-ItemProperty -Path $key -Name KeyManagementServiceName -Value $KMSServer -PropertyType String -Force > $null ",
+            "    } ",
+            " ",
+            "    if ($kmsServicePort -eq $KMSPort) { ",
+            "        Write-Output (\"$key\\KeyManagementServicePort is already \" + $KMSPort + \". Skipping.\") ",
+            "    } ",
+            "    else { ",
+            "        Write-Output (\"Setting $key\\KeyManagementServicePort to \" + $KMSPort + \".\") ",
+            "        New-ItemProperty -Path $key -Name KeyManagementServicePort -Value $KMSPort -PropertyType DWORD -Force > $null ",
+            "    } ",
+            " ",
+            "} ",
+            " ",
+            "try { ",
+            " ",
+            "    $ForceActivationInput = \"{{ ForceActivation }}\" ",
+            "    switch ($ForceActivationInput) { ",
+            "        \"True\" { $ForceActivation = $True } ",
+            "        \"False\" { $ForceActivation = $False } ",
+            "        default { throw \"Unexpected input.\"}  ",
+            "    } ",
+            " ",
+            "    if (Test-SupportedOS) { ",
+            "        #region Check Windows Activation status ",
+            "        $OSversion = (Get-WMIObject -Class Win32_OperatingSystem).Caption ",
+            "        Write-Output $OSversion ",
+            "        Write-Output \"Determining current activation status...\" ",
+            "        if (Test-ActivationStatus) { ",
+            "            if ($ForceActivation) { ",
+            "                Write-Output \"Windows is already activated. ForceActivation = True.\" ",
+            "            } ",
+            "            else { ",
+            "                Write-Output \"Windows is already activated. No action needed.\" ",
+            "                exit 0 ",
+            "            } ",
+            "        } ",
+            "        else { ",
+            "            Write-Output \"Windows is not activated.\" ",
+            "        } ",
+            "        #endregion ",
+            " ",
+            "        #region Activate Windows ",
+            "        Repair-AWSRoute -Destination \"169.254.169.250\" ",
+            "        Repair-AWSRoute -Destination \"169.254.169.251\" ",
+            "        Repair-AWSRoute -Destination \"169.254.169.254\" ",
+            "        Repair-KMSSetting -KMSServer \"169.254.169.250\" -KMSPort 1688 ",
+            "        if (-not (Test-KMSReachability -KMSServer \"169.254.169.250\" -KMSPort 1688)) { ",
+            "            Repair-KMSSetting -KMSServer \"169.254.169.251\" -KMSPort 1688 ",
+            "            if (-not (Test-KMSReachability -KMSServer \"169.254.169.251\" -KMSPort 1688)) { ",
+            "                throw \"Cannot reach Amazon KMS. Make sure no local software firewall is blocking traffic to 169.254.169.250 and 169.254.169.251 on TCP 1688, and that you have the latest network drivers installed. Note that you cannot activate Windows BYOL against Amazon KMS. If you want to bring your own license, please review https://aws.amazon.com/windows/resources/licensing/.\" ",
+            "            } ",
+            "            else { ",
+            "                & cscript \"${env:SYSTEMROOT}\\system32\\slmgr.vbs\" /skms 169.254.169.251:1688 ",
+            "            } ",
+            "        } ",
+            "        else { ",
+            "            & cscript \"${env:SYSTEMROOT}\\system32\\slmgr.vbs\" /skms 169.254.169.250:1688 ",
+            "        } ",
+            "        Write-Output \"Activating Windows.\" ",
+            "        $key = Get-KMSKey -OSVersion $OSversion ",
+            "        & cscript \"${env:SYSTEMROOT}\\system32\\slmgr.vbs\" /ipk $key ",
+            "        & cscript \"${env:SYSTEMROOT}\\system32\\slmgr.vbs\" /ato ",
+            "        if (!(Test-ActivationStatus)) { ",
+            "            throw \"Windows is not activated.\" ",
+            "        } ",
+            "        #endregion ",
+            "    } ",
+            "    else { ",
+            "        throw \"Your OS is unsupported for volume-activation scenarios.\" ",
+            "    } ",
+            " ",
+            "} ",
+            "catch { ",
+            " ",
+            "    Write-Output $_.Exception.Message ",
+            "    Exit 1 ",
+            " ",
+            "}"
+          ]
+        }
+      },
+      "isCritical": "true",
+      "isEnd": "true"
+    },
+    {
+      "name": "assertAllowOffline",
+      "action": "aws:assertAwsResourceProperty",
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "ssm",
+        "Api": "GetAutomationExecution",
+        "AutomationExecutionId": "{{ automation:EXECUTION_ID }}",
+        "PropertySelector": "$.AutomationExecution.Parameters.AllowOffline[0]",
+        "DesiredValues": [
+          "True"
+        ]
+      },
+      "isCritical": "true",
+      "nextStep": "activateWindowsOffline"
+    },
+    {
+      "name": "activateWindowsOffline",
+      "action": "aws:executeAutomation",
+      "onFailure": "Continue",
+      "inputs": {
+        "RuntimeParameters": {
+          "InstanceId": [
+            "{{ InstanceId }}"
+          ],
+          "OfflineScript": [
+            "JGN1cnJlbnRWZXJzaW9uID0gW1N5c3RlbS5WZXJzaW9uXSAkZW52OkVDMlJFU0NVRV9PRkZMSU5FX0tFUk5FTF9WRVINCiRlYzJMYXVuY2hPU1ZlcnNpb24gPSBbU3lzdGVtLlZlcnNpb25dICIxMC4wIg0KaWYgKCRjdXJyZW50VmVyc2lvbiAtZ2UgJGVjMkxhdW5jaE9TVmVyc2lvbikgew0KICAgIFdyaXRlLUhvc3QgIkNvbmZpZ3VyaW5nIEVDMkxhdW5jaCB0byByZXBhaXIgV2luZG93cyBhY3RpdmF0aW9uIGF0IG5leHQgYm9vdCINCiAgICAkZml4V2luZG93c0FjdGl2YXRpb25EU0NTY3JpcHQgPSBAIg0KQ29uZmlndXJhdGlvbiBGaXhXaW5kb3dzQWN0aXZhdGlvbg0Kew0KICAgIEltcG9ydC1Ec2NSZXNvdXJjZSAtTW9kdWxlTmFtZSBQU0Rlc2lyZWRTdGF0ZUNvbmZpZ3VyYXRpb24NCiAgICBOb2RlIGxvY2FsaG9zdA0KICAgIHsNCiAgICAgICAgU2NyaXB0IEZpeFdpbmRvd3NBY3RpdmF0aW9uIHsNCiAgICAgICAgICAgIEdldFNjcmlwdCAgPSB7DQogICAgICAgICAgICAgICAgcmV0dXJuIEB7DQogICAgICAgICAgICAgICAgICAgICdSZXN1bHQnID0gJ1dpbmRvd3MgYWN0aXZhdGlvbiBmaXggYXBwbGllZCcNCiAgICAgICAgICAgICAgICB9DQogICAgICAgICAgICB9DQogICAgICAgICAgICBUZXN0U2NyaXB0ID0gew0KICAgICAgICAgICAgICAgIGAkc3RhdHVzID0gR2V0LVdNSU9iamVjdCBTb2Z0d2FyZUxpY2Vuc2luZ1Byb2R1Y3QgLUZpbHRlciAiQXBwbGljYXRpb25JRCA9ICc1NWM5MjczNC1kNjgyLTRkNzEtOTgzZS1kNmVjM2YxNjA1OWYnIiB8IFdoZXJlLU9iamVjdCB7IGAkXy5saWNlbnNlc3RhdHVzIC1lcSAxIH0NCiAgICAgICAgICAgICAgICBpZiAoYCRzdGF0dXMpIHsNCiAgICAgICAgICAgICAgICAgICAgcmV0dXJuIGAkdHJ1ZQ0KICAgICAgICAgICAgICAgIH0NCiAgICAgICAgICAgICAgICBlbHNlIHsNCiAgICAgICAgICAgICAgICAgICAgcmV0dXJuIGAkZmFsc2UNCiAgICAgICAgICAgICAgICB9DQogICAgICAgICAgICB9DQogICAgICAgICAgICBTZXRTY3JpcHQgID0gew0KICAgICAgICAgICAgICAgIFdyaXRlLVZlcmJvc2UgIlJ1bm5pbmcgc2NyaXB0IHRvIGZpeCBXaW5kb3dzIGFjdGl2YXRpb24iDQogICAgICAgICAgICAgICAgQzpcUHJvZ3JhbURhdGFcQW1hem9uXEVDMi1XaW5kb3dzXExhdW5jaFxTY3JpcHRzXEluaXRpYWxpemVJbnN0YW5jZS5wczENCiAgICAgICAgICAgICAgICAmIGNzY3JpcHQgImAke2VudjpTWVNURU1ST09UfVxzeXN0ZW0zMlxzbG1nci52YnMiIC9hdG8NCiAgICAgICAgICAgIH0NCiAgICAgICAgfQ0KICAgIH0NCn0NCiJADQoNCiAgICBXcml0ZS1PdXRwdXQgJ3sgDQogICAgInNldENvbXB1dGVyTmFtZSI6IGZhbHNlLA0KICAgICJzZXRXYWxscGFwZXIiOiB0cnVlLA0KICAgICJhZGREbnNTdWZmaXhMaXN0IjogdHJ1ZSwNCiAgICAiZXh0ZW5kQm9vdFZvbHVtZVNpemUiOiB0cnVlLA0KICAgICJhZG1pblBhc3N3b3JkVHlwZSI6ICJEb05vdGhpbmciLA0KICAgICJhZG1pblBhc3N3b3JkIjogICIiDQogICAgfScgPiAke2VudjpFQzJSRVNDVUVfT0ZGTElORV9EUklWRX1Qcm9ncmFtRGF0YVxBbWF6b25cRUMyLVdpbmRvd3NcTGF1bmNoXENvbmZpZ1xMYXVuY2hDb25maWcuanNvbg0KDQogICAgSW52b2tlLUV4cHJlc3Npb24gJGZpeFdpbmRvd3NBY3RpdmF0aW9uRFNDU2NyaXB0DQogICAgRml4V2luZG93c0FjdGl2YXRpb24gfCBPdXQtTnVsbA0KICAgIENvcHktSXRlbSAuXEZpeFdpbmRvd3NBY3RpdmF0aW9uXGxvY2FsaG9zdC5tb2YgLURlc3RpbmF0aW9uICIke2VudjpFQzJSRVNDVUVfT0ZGTElORV9TWVNURU1fUk9PVH1cU3lzdGVtMzJcQ29uZmlndXJhdGlvblxQZW5kaW5nLm1vZiIgLUZvcmNlDQp9DQplbHNlIHsNCiAgICBXcml0ZS1Ib3N0ICJDb25maWd1cmluZyBFQzJDb25maWcgdG8gcmVwYWlyIFdpbmRvd3MgYWN0aXZhdGlvbiBhdCBuZXh0IGJvb3QiDQogICAgJGNvbmZpZ3VyYXRpb25GaWxlID0gIiR7ZW52OkVDMlJFU0NVRV9PRkZMSU5FX1BST0dSQU1fRklMRVNfRElSfVxBbWF6b25cRWMyQ29uZmlnU2VydmljZVxTZXR0aW5nc1xjb25maWcueG1sIg0KICAgIFt4bWxdJHhtbCA9IEdldC1Db250ZW50ICRjb25maWd1cmF0aW9uRmlsZQ0KICAgICR4bWwuRWMyQ29uZmlndXJhdGlvblNldHRpbmdzLlBsdWdpbnMuUGx1Z2luIHwgV2hlcmUtT2JqZWN0IHsgJF8uTmFtZSAtZXEgIkVjMldpbmRvd3NBY3RpdmF0ZSIgfSB8IEZvckVhY2gtT2JqZWN0IHsgJF8uU3RhdGUgPSAiRW5hYmxlZCIgfQ0KICAgICR4bWwuRWMyQ29uZmlndXJhdGlvblNldHRpbmdzLkdsb2JhbFNldHRpbmdzLlNob3VsZEFkZFJvdXRlcyA9ICJ0cnVlIg0KICAgICR4bWwuU2F2ZSgkY29uZmlndXJhdGlvbkZpbGUpDQp9"
+          ],
+          "SubnetId": [
+            "{{ SubnetId }}"
+          ],
+          "AutomationAssumeRole": [
+            "{{ AutomationAssumeRole }}"
+          ]
+        },
+        "DocumentName": "AWSSupport-StartEC2RescueWorkflow"
+      },
+      "isCritical": "true",
+      "nextStep": "getActivateWindowsOfflineResult"
+    },
+    {
+      "name": "getActivateWindowsOfflineResult",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "ssm",
+        "Api": "GetAutomationExecution",
+        "AutomationExecutionId": "{{ activateWindowsOffline.ExecutionId }}"
+      },
+      "outputs": [
+        {
+          "Name": "Output",
+          "Selector": "$.AutomationExecution.Outputs.'runScriptForWindows.Output'[0]",
+          "Type": "String"
+        }
+      ],
+      "isCritical": "false",
+      "isEnd": "true"
+    }
+  ],
+  "outputs": [
+    "activateWindows.Output",
+    "getActivateWindowsOfflineResult.Output"
+  ]
+}

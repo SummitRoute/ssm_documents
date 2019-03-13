@@ -1,0 +1,229 @@
+{
+  "schemaVersion": "0.3",
+  "description": "This document will use the EC2Rescue tool on the specified EC2 instance to re-enable password decryption via the EC2 Console (Windows), or to generate and add a new SSH key pair (Linux). If you lost your key pair, this automation will create a password-enabled AMI that you can use to launch a new EC2 instance with a key pair you own (Windows).",
+  "assumeRole": "{{ AssumeRole }}",
+  "parameters": {
+    "InstanceId": {
+      "type": "String",
+      "description": "(Required) ID of the EC2 instance you want to reset access for. IMPORTANT: AWS Systems Manager Automation stops this instance, and creates an AMI before attempting any operations. Data stored in instance store volumes will be lost. The public IP address will change if you are not using an Elastic IP.",
+      "allowedPattern": "^[m]{0,1}i-[a-z0-9]{8,17}$"
+    },
+    "EC2RescueInstanceType": {
+      "type": "String",
+      "description": "(Required) The EC2 instance type for the EC2Rescue instance. Recommended size: t2.small.",
+      "default": "t2.small",
+      "allowedValues": [
+        "t2.small",
+        "t2.medium",
+        "t2.large"
+      ]
+    },
+    "SubnetId": {
+      "type": "String",
+      "description": "(Optional) The subnet ID for the EC2Rescue instance. By default, AWS Systems Manager Automation creates a new VPC. Alternatively, Use SelectedInstanceSubnet to use the same subnet as your instance, or specify a custom subnet ID. IMPORTANT: The subnet must be in the same Availability Zone as InstanceId, and it must allow access to the SSM endpoints.",
+      "default": "CreateNewVPC",
+      "allowedPattern": "^SelectedInstanceSubnet$|^CreateNewVPC$|^subnet-[a-z0-9]{8,17}$"
+    },
+    "AssumeRole": {
+      "type": "String",
+      "description": "(Optional) The IAM role for this execution. If no role is specified, AWS Systems Manager Automation will use the permissions of the user that executes this document.",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "assertInstanceIsWindows",
+      "action": "aws:assertAwsResourceProperty",
+      "onFailure": "step:runEC2RescueForLinux",
+      "inputs": {
+        "Service": "ec2",
+        "Api": "DescribeInstances",
+        "InstanceIds": [
+          "{{ InstanceId }}"
+        ],
+        "PropertySelector": "$.Reservations[0].Instances[0].Platform",
+        "DesiredValues": [
+          "windows"
+        ]
+      },
+      "isCritical": "false",
+      "nextStep": "runEC2RescueForWindows"
+    },
+    {
+      "name": "runEC2RescueForWindows",
+      "onFailure": "Continue",
+      "action": "aws:executeAutomation",
+      "inputs": {
+        "RuntimeParameters": {
+          "InstanceId": [
+            "{{ InstanceId }}"
+          ],
+          "OfflineScript": [
+            "SW1wb3J0LU1vZHVsZSBFQzJSZXNjdWUKSW52b2tlLUVDMlJlc2N1ZUVuYWJsZVBhc3N3b3JkR2VuZXJhdGlvbiAtQmxvY2tEZXZpY2VOYW1lICR7ZW52OkVDMlJFU0NVRV9PRkZMSU5FX0VCU19ERVZJQ0V9"
+          ],
+          "SubnetId": [
+            "{{ SubnetId }}"
+          ],
+          "CreatePreEC2RescueBackup": [
+            "True"
+          ],
+          "CreatePostEC2RescueBackup": [
+            "True"
+          ],
+          "UniqueId": "{{ automation:EXECUTION_ID }}"
+        },
+        "DocumentName": "AWSSupport-StartEC2RescueWorkflow"
+      },
+      "isCritical": "true",
+      "nextStep": "getWindowsBackupAmi"
+    },
+    {
+      "name": "getWindowsBackupAmi",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Continue",
+      "inputs": {
+        "Service": "ssm",
+        "Api": "GetAutomationExecution",
+        "AutomationExecutionId": "{{ runEC2RescueForWindows.ExecutionId }}"
+      },
+      "outputs": [
+        {
+          "Name": "ImageId",
+          "Selector": "$.AutomationExecution.Outputs.'preScriptBackup.ImageId'[0]",
+          "Type": "String"
+        }
+      ],
+      "isCritical": "false",
+      "nextStep": "getWindowsPasswordEnabledAmi"
+    },
+    {
+      "name": "getWindowsPasswordEnabledAmi",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Continue",
+      "inputs": {
+        "Service": "ssm",
+        "Api": "GetAutomationExecution",
+        "AutomationExecutionId": "{{ runEC2RescueForWindows.ExecutionId }}"
+      },
+      "outputs": [
+        {
+          "Name": "ImageId",
+          "Selector": "$.AutomationExecution.Outputs.'postScriptBackup.ImageId'[0]",
+          "Type": "String"
+        }
+      ],
+      "isCritical": "false",
+      "nextStep": "getEC2RescueForWindowsResult"
+    },
+    {
+      "name": "getEC2RescueForWindowsResult",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "ssm",
+        "Api": "GetAutomationExecution",
+        "AutomationExecutionId": "{{ runEC2RescueForWindows.ExecutionId }}"
+      },
+      "outputs": [
+        {
+          "Name": "Output",
+          "Selector": "$.AutomationExecution.Outputs.'runScriptForWindows.Output'[0]",
+          "Type": "String"
+        }
+      ],
+      "isCritical": "false",
+      "isEnd": "true"
+    },
+    {
+      "name": "runEC2RescueForLinux",
+      "onFailure": "Continue",
+      "action": "aws:executeAutomation",
+      "inputs": {
+        "RuntimeParameters": {
+          "InstanceId": [
+            "{{ InstanceId }}"
+          ],
+          "OfflineScript": [
+            "ZXJyb3JfdHJhcCgpCnsKICAgIGlmIHRlc3QgLW4gIiQxIiA7IHRoZW4KICAgICAgICBwcmludGYgIiVzXFxuIiAiJDEiCiAgICBmaQogICAgcHJpbnRmICIlLnM9IiAkKHNlcSAxIDgwKQogICAgcHJpbnRmICJcXG5UaGUgRUMyUmVzY3VlIGV4ZWN1dGlvbiBkaWQgbm90IGNvbXBsZXRlIHN1Y2Nlc3NmdWxseS5cXG4iCiAgICBleGl0IDEKfQoKcHJpbnRmICJHZW5lcmF0aW5nIG5ldyBrZXkgcGFpclxcbiIKCk5FV19QVUJMSUNfS0VZPSIkKCR7RUMyUkVTQ1VFX1BZVEhPTn0gLWMgIgojIFRoaXMgUHl0aG9uIHNuaXBwZXQgaXMgZnJvbSB0aGUgRUMyIFJlc2N1ZSBmb3IgTGludXggb3BlbnNzaCBtb2R1bGUKZnJvbSBfX2Z1dHVyZV9fIGltcG9ydCBwcmludF9mdW5jdGlvbgppbXBvcnQgb3MKaW1wb3J0IHNobGV4CmltcG9ydCBzdWJwcm9jZXNzCmltcG9ydCBzeXMKCnN5cy5wYXRoLmluc2VydCgwLCBvcy5wYXRoLmpvaW4ob3MuZW52aXJvblsnRUMyUkVTQ1VFX0VDMlJMX0RJUiddLCAnbGliJykpCgppbXBvcnQgcmVxdWVzdHMKaW1wb3J0IGJvdG8zCmltcG9ydCBib3RvY29yZQoKCmRlZiBnZW5lcmF0ZV9yc2Ffa2V5X3BhaXIoa2V5X3BhdGgpOgogICAgdHJ5OgogICAgICAgIGtleV9wYXRoID0gb3MucGF0aC5qb2luKGtleV9wYXRoLCAnZWMycmxfb3BlbnNzaHJlc2V0YWNjZXNzJykKICAgICAgICBrZXlzX2RpY3QgPSB7J3ByaXZhdGUnOiBOb25lLCAncHVibGljJzogTm9uZX0KICAgICAgICBzdWJwcm9jZXNzLmNoZWNrX2NhbGwoCiAgICAgICAgICAgIHNobGV4LnNwbGl0KCdzc2gta2V5Z2VuIC1xIC10IHJzYSAtYiA0MDk2IC1mIHt9IC1OIFwnXCcgLUMgXCdBZGRlZCBieSBFQzIgUmVzY3VlIGZvciBMaW51eFwnJy5mb3JtYXQoCiAgICAgICAgICAgICAgICBrZXlfcGF0aCkpLAogICAgICAgICAgICBzdGRlcnI9c3VicHJvY2Vzcy5TVERPVVQpCgogICAgICAgIHdpdGggb3Blbigne30ucHViJy5mb3JtYXQoa2V5X3BhdGgpLCAncicpIGFzIHB1Yl9mcDoKICAgICAgICAgICAga2V5c19kaWN0WydwdWJsaWMnXSA9IHB1Yl9mcC5yZWFkKCkKICAgICAgICB3aXRoIG9wZW4oa2V5X3BhdGgsICdyJykgYXMgcHJpdl9mcDoKICAgICAgICAgICAga2V5c19kaWN0Wydwcml2YXRlJ10gPSBwcml2X2ZwLnJlYWQoKQogICAgICAgIHJldHVybiBrZXlzX2RpY3QKICAgIGZpbmFsbHk6CiAgICAgICAgIyBBbHdheXMgcmVtb3ZlIHRoZSBrZXkgZmlsZXMgZXZlbiBpbiB0aGUgZXZlbnQgb2YgYW4gZXhjZXB0aW9uIGJlaW5nIHJhaXNlZAogICAgICAgICMgSXQgaXMgcG9zc2libGUgdGhhdCBhbiBleGNlcHRpb24gaXMgcmFpc2VkIGJlZm9yZSB0aGUga2V5IGZpbGVzIGFyZSBjcmVhdGVkIHNvIGNhdGNoIHRob3NlIGV4Y2VwdGlvbnMKICAgICAgICAjIElPRXJyb3IvUHl0aG9uIDIsIE9TRXJyb3IvUHl0aG9uIDMgKEZpbGVOb3RGb3VuZEVycm9yLCBldGMpCiAgICAgICAgdHJ5OgogICAgICAgICAgICBvcy5yZW1vdmUoa2V5X3BhdGgpCiAgICAgICAgZXhjZXB0IChPU0Vycm9yLCBJT0Vycm9yKToKICAgICAgICAgICAgcGFzcwogICAgICAgIHRyeToKICAgICAgICAgICAgb3MucmVtb3ZlKCd7fS5wdWInLmZvcm1hdChrZXlfcGF0aCkpCiAgICAgICAgZXhjZXB0IChPU0Vycm9yLCBJT0Vycm9yKToKICAgICAgICAgICAgcGFzcwoKCmRlZiBydW4oKToKICAgIGtleXMgPSBnZW5lcmF0ZV9yc2Ffa2V5X3BhaXIoJy9yb290JykKICAgIG5ld19wdWJsaWNfa2V5ID0ga2V5c1sncHVibGljJ10KICAgIGluc3RhbmNlX2lkID0gb3MuZW52aXJvblsnRUMyUkVTQ1VFX1NPVVJDRV9JTlNUQU5DRSddCiAgICB0cnk6CiAgICAgICAgcmVzcCA9IHJlcXVlc3RzLmdldCgnaHR0cDovLzE2OS4yNTQuMTY5LjI1NC9sYXRlc3QvbWV0YS1kYXRhL3BsYWNlbWVudC9hdmFpbGFiaWxpdHktem9uZScpCiAgICAgICAgcmVzcC5yYWlzZV9mb3Jfc3RhdHVzKCkKICAgICAgICBpbnN0YW5jZV9yZWdpb24gPSByZXNwLnRleHRbOi0xXQogICAgZXhjZXB0IHJlcXVlc3RzLmV4Y2VwdGlvbnMuUmVxdWVzdEV4Y2VwdGlvbiBhcyByZToKICAgICAgICBwcmludChyZSkKICAgICAgICByZXR1cm4gMQoKICAgIHRyeToKICAgICAgICBjbGllbnQgPSBib3RvMy5jbGllbnQoJ3NzbScsIHJlZ2lvbl9uYW1lPWluc3RhbmNlX3JlZ2lvbikKICAgICAgICBwYXJhbWV0ZXJfZGljdCA9IHsKICAgICAgICAgICAgJ05hbWUnOiAnL2VjMnJsL29wZW5zc2gve30va2V5Jy5mb3JtYXQoaW5zdGFuY2VfaWQpLAogICAgICAgICAgICAnRGVzY3JpcHRpb24nOiAnUHJpdmF0ZSBrZXkgYWRkZWQgdG8gaW5zdGFuY2Uge30gYnkgRUMyIFJlc2N1ZSBmb3IgTGludXguJy5mb3JtYXQoaW5zdGFuY2VfaWQpLAogICAgICAgICAgICAnVmFsdWUnOiBrZXlzWydwcml2YXRlJ10sCiAgICAgICAgICAgICdUeXBlJzogJ1NlY3VyZVN0cmluZycsCiAgICAgICAgICAgICdPdmVyd3JpdGUnOiBUcnVlCiAgICAgICAgfQogICAgICAgIGNsaWVudC5wdXRfcGFyYW1ldGVyKCoqcGFyYW1ldGVyX2RpY3QpCiAgICBleGNlcHQgYm90b2NvcmUuZXhjZXB0aW9ucy5Ob0NyZWRlbnRpYWxzRXJyb3I6CiAgICAgICAgcHJpbnQoJ05vIEFXUyBDcmVkZW50aWFscyBjb25maWd1cmVkLiBQbGVhc2UgY29uZmlndXJlIHRoZW0gYW5kIHRyeSBhZ2Fpbi4nKQogICAgICAgIHJldHVybiAxCiAgICBleGNlcHQgYm90b2NvcmUuZXhjZXB0aW9ucy5DbGllbnRFcnJvciBhcyBjZToKICAgICAgICBwcmludChjZSkKICAgICAgICByZXR1cm4gMQoKICAgIHByaW50KG5ld19wdWJsaWNfa2V5KQoKCmlmIF9fbmFtZV9fID09ICdfX21haW5fXyc6CiAgICBzeXMuZXhpdChydW4oKSkKIikiIHx8IGVycm9yX3RyYXAKIyBNYWtlIHRoZSBuZXcgcHVibGljIGtleSBhdmFpbGFibGUgaW5zaWRlIHRoZSBjaHJvb3QgaGVyZS1kb2MKZXhwb3J0IE5FV19QVUJMSUNfS0VZCgpwcmludGYgIlN0YXJ0aW5nIGNocm9vdFxcbiIKY2hyb290ICIke0VDMlJFU0NVRV9PRkZMSU5FX1NZU1RFTV9ST09UfSIgL2Jpbi9iYXNoIDw8ICdDSFJPT1RfSEVSRScKIyEvYmluL2Jhc2gKZXJyb3JfdHJhcCgpCnsKICAgIGlmIHRlc3QgLW4gIiQxIiA7IHRoZW4KICAgICAgICBwcmludGYgIiVzXFxuIiAiJDEiCiAgICBmaQogICAgcHJpbnRmICIlLnM9IiAkKHNlcSAxIDgwKQogICAgcHJpbnRmICJcXG5UaGUgRUMyUmVzY3VlIGV4ZWN1dGlvbiBkaWQgbm90IGNvbXBsZXRlIHN1Y2Nlc3NmdWxseS5cXG4iCiAgICBleGl0IDEKfQouIC9ldGMvcHJvZmlsZQoKIyBDaGVjayB0aGF0IGEgY29tcGF0aWJsZSBQeXRob24gaW50ZXJwcmV0ZXIgaXMgYXZhaWxhYmxlIGluIHRoZSBjaHJvb3QgZW52aXJvbm1lbnQKaWYgY29tbWFuZCAtdiBweXRob24zID4gL2Rldi9udWxsOyB0aGVuCiAgICBQWVRIT049cHl0aG9uMwplbGlmIGNvbW1hbmQgLXYgcHl0aG9uMi43ID4gL2Rldi9udWxsOyB0aGVuCiAgICBQWVRIT049cHl0aG9uMi43CmVsc2UKICAgIGVycm9yX3RyYXAgIkZhaWxlZCB0byBmaW5kIGNvbXBhdGlibGUgUHl0aG9uIGVudmlyb25tZW50ISIKZmkKCnByaW50ZiAiUnVubmluZyBFQzIgUmVzY3VlIGZvciBMaW51eFxcbiIKZWMycmwgcnVuIC0tcmVtZWRpYXRlIC0tb25seS1tb2R1bGVzPW9wZW5zc2ggLS1pbmplY3Qta2V5LW9ubHkgLS1uZXctc3NoLWtleT0iJHtORVdfUFVCTElDX0tFWX0iIHx8IGVycm9yX3RyYXAKCkNIUk9PVF9IRVJFCgppZiB0ZXN0ICIkPyIgIT0gMDsgdGhlbgogICAgZXJyb3JfdHJhcCAiRXJyb3I6IGV4ZWN1dGlvbiBmYWlsdXJlIGluc2lkZSBjaHJvb3QgZW52aXJvbm1lbnQuIgpmaQ=="
+          ],
+          "SubnetId": [
+            "{{ SubnetId }}"
+          ],
+          "CreatePreEC2RescueBackup": [
+            "True"
+          ],
+          "UniqueId": "{{ automation:EXECUTION_ID }}"
+        },
+        "DocumentName": "AWSSupport-StartEC2RescueWorkflow"
+      },
+      "isCritical": "true",
+      "nextStep": "getLinuxBackupAmi"
+    },
+    {
+      "name": "getLinuxBackupAmi",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Continue",
+      "inputs": {
+        "Service": "ssm",
+        "Api": "GetAutomationExecution",
+        "AutomationExecutionId": "{{ runEC2RescueForLinux.ExecutionId }}"
+      },
+      "outputs": [
+        {
+          "Name": "ImageId",
+          "Selector": "$.AutomationExecution.Outputs.'preScriptBackup.ImageId'[0]",
+          "Type": "String"
+        }
+      ],
+      "isCritical": "false",
+      "nextStep": "getLinuxSSHKeyParameter"
+    },
+    {
+      "name": "getLinuxSSHKeyParameter",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Continue",
+      "inputs": {
+        "Service": "ssm",
+        "Api": "GetParameter",
+        "Name": "/ec2rl/openssh/{{ InstanceId }}/key",
+        "WithDecryption": false
+      },
+      "outputs": [
+        {
+          "Name": "Name",
+          "Selector": "$.Parameter.Name",
+          "Type": "String"
+        }
+      ],
+      "isCritical": "false",
+      "nextStep": "getEC2RescueForLinuxResult"
+    },
+    {
+      "name": "getEC2RescueForLinuxResult",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "ssm",
+        "Api": "GetAutomationExecution",
+        "AutomationExecutionId": "{{ runEC2RescueForLinux.ExecutionId }}"
+      },
+      "outputs": [
+        {
+          "Name": "Output",
+          "Selector": "$.AutomationExecution.Outputs.'runScriptForLinux.Output'[0]",
+          "Type": "String"
+        }
+      ],
+      "isCritical": "false",
+      "isEnd": "true"
+    }
+  ],
+  "outputs": [
+    "getEC2RescueForWindowsResult.Output",
+    "getWindowsBackupAmi.ImageId",
+    "getWindowsPasswordEnabledAmi.ImageId",
+    "getEC2RescueForLinuxResult.Output",
+    "getLinuxBackupAmi.ImageId",
+    "getLinuxSSHKeyParameter.Name"
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "2.0",
+  "description": "Run Docker actions on containers.",
+  "parameters": {
+    "action": {
+      "type": "String",
+      "description": "The type of action to perform.",
+      "allowedValues": [
+        "Create",
+        "Start",
+        "Run",
+        "Stop",
+        "Rm",
+        "Exec",
+        "Inspect",
+        "Logs",
+        "Ps",
+        "Stats",
+        "Pull",
+        "Images",
+        "Rmi"
+      ]
+    },
+    "container": {
+      "type": "String",
+      "default": "",
+      "description": "(Optional) The Docker container Id.",
+      "allowedPattern": "^[a-zA-Z0-9_\\-\\/]*$",
+      "maxChars": 128
+    },
+    "image": {
+      "type": "String",
+      "default": "",
+      "description": "(Optional) The Docker image name.",
+      "allowedPattern": "^[a-zA-Z0-9_\\-\\/]*$",
+      "maxChars": 128
+    },
+    "cmd": {
+      "type": "String",
+      "default": "",
+      "description": "(Optional) The container command.",
+      "allowedPattern": "^[^;,&|]*$",
+      "maxChars": 128
+    },
+    "memory": {
+      "type": "String",
+      "default": "",
+      "description": "(Optional) The container memory limit.",
+      "allowedPattern": "^[0-9]*[bkmg]?$",
+      "maxChars": 10
+    },
+    "cpuShares": {
+      "type": "String",
+      "default": "",
+      "description": "(Optional) The container CPU shares (relative weight).",
+      "allowedPattern": "^/?[a-zA-Z0-9_-]*$",
+      "maxChars": 10
+    },
+    "volume": {
+      "type": "StringList",
+      "default": [],
+      "description": "(Optional) The container volume mounts.",
+      "displayType": "textarea",
+      "allowedPattern": "^[\\w\\\\\\/_\\:\\-\\.\\\"\\(\\)\\^ ]*$",
+      "maxChars": 128
+    },
+    "env": {
+      "type": "String",
+      "default": "",
+      "description": "(Optional) The container environment variables.",
+      "allowedPattern": "^[^;,&|]*$",
+      "maxChars": 256
+    },
+    "user": {
+      "type": "String",
+      "default": "",
+      "description": "(Optional) The container username.",
+      "allowedPattern": "^[a-zA-Z0-9_-]*$",
+      "maxChars": 128
+    },
+    "publish": {
+      "type": "String",
+      "default": "",
+      "description": "(Optional) The container published ports.",
+      "allowedPattern": "^[0-9a-zA-Z:\\-\\/.]*$",
+      "maxChars": 50
+    }
+  },
+  "mainSteps": [
+    {
+      "action": "aws:runDockerAction",
+      "name": "RunDockerAction",
+      "inputs": {
+        "action": "{{ action }}",
+        "container": "{{ container }}",
+        "image": "{{ image }}",
+        "memory": "{{ memory }}",
+        "cpuShares": "{{ cpuShares }}",
+        "volume": "{{ volume }}",
+        "cmd": "{{ cmd }}",
+        "env": "{{ env }}",
+        "user": "{{ user }}",
+        "publish": "{{ publish }}"
+      }
+    }
+  ]
+}

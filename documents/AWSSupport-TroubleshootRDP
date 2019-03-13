@@ -1,0 +1,678 @@
+{
+  "schemaVersion": "0.3",
+  "description": "The AWSSupport-TroubleshootRDP automation document allows the user to check or modify common settings on the target instance which may impact Remote Desktop Protocol (RDP) connections, such as the RDP port, Network Layer Authentication (NLA) and Windows Firewall profiles. Optionally, changes can be applied offline by stopping and starting the instance, if the user explicitly allows for offline remediation. By default, the document reads and outputs the values of the settings. IMPORTANT: Changes to the RDP settings, RDP service and Windows Firewall profiles should be carefully reviewed before running this document.",
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "parameters": {
+    "InstanceId": {
+      "type": "String",
+      "description": "(Required) The ID of the instance to troubleshoot the RDP settings of.",
+      "allowedPattern": "^[m]{0,1}i-[a-z0-9]{8,17}$"
+    },
+    "Action": {
+      "description": "(Optional) [Custom] Use the values from Firewall, RDPServiceStartupType, RDPServiceAction, RDPPortAction, NLASettingAction and RemoteConnections to manage the settings. [CheckAll] Read the values of the settings without changing them. [FixAll] Restore RDP default settings, and disable the Windows Firewall.",
+      "type": "String",
+      "allowedValues": [
+        "CheckAll",
+        "FixAll",
+        "Custom"
+      ],
+      "default": "Custom"
+    },
+    "AllowOffline": {
+      "type": "String",
+      "description": "(Optional) Fix only - Set it to true if you allow an offline RDP remediation in case the online troubleshooting fails, or the provided instance is not a managed instance. Note: For the offline remediation, SSM Automation stops the instance, and creates an AMI before attempting any operations.",
+      "default": "False",
+      "allowedValues": [
+        "True",
+        "False"
+      ]
+    },
+    "Firewall": {
+      "type": "String",
+      "description": "(Optional) Check or disable the Windows firewall (all profiles).",
+      "default": "Check",
+      "allowedValues": [
+        "Check",
+        "Disable"
+      ]
+    },
+    "RDPServiceStartupType": {
+      "type": "String",
+      "description": "(Optional) Check or set the RDP service to automatically start when Windows boots.",
+      "default": "Check",
+      "allowedValues": [
+        "Check",
+        "Auto"
+      ]
+    },
+    "RDPServiceAction": {
+      "type": "String",
+      "description": "(Optional) Check, start, restart, or force-restart the RDP service (TermService).",
+      "default": "Check",
+      "allowedValues": [
+        "Check",
+        "Start",
+        "Restart",
+        "Force-Restart"
+      ]
+    },
+    "RDPPortAction": {
+      "type": "String",
+      "description": "(Optional) Check the current port used for RDP connections, or modify the RDP port back to 3389 and restart the service.",
+      "default": "Check",
+      "allowedValues": [
+        "Check",
+        "Modify"
+      ]
+    },
+    "NLASettingAction": {
+      "type": "String",
+      "description": "(Optional) Check or disable Network Layer Authentication (NLA).",
+      "default": "Check",
+      "allowedValues": [
+        "Check",
+        "Disable"
+      ]
+    },
+    "RemoteConnections": {
+      "type": "String",
+      "description": "(Optional) An action to perform on the fDenyTSConnections setting: Check, Enable.",
+      "default": "Check",
+      "allowedValues": [
+        "Check",
+        "Enable"
+      ]
+    },
+    "SubnetId": {
+      "type": "String",
+      "description": "(Optional) Offline only - The subnet ID for the EC2Rescue instance used to perform the offline troubleshooting. If no subnet ID is specified, AWS Systems Manager Automation will create a new VPC. IMPORTANT: The subnet must be in the same Availability Zone as InstanceId, and it must allow access to the SSM endpoints.",
+      "default": "SelectedInstanceSubnet",
+      "allowedPattern": "^$|^subnet-[a-z0-9]{8,17}$|SelectedInstanceSubnet"
+    },
+    "S3BucketName": {
+      "description": "(Optional) Offline only - S3 bucket name in your account where you want to upload the troubleshooting logs. Make sure the bucket policy does not grant unnecessary read/write permissions to parties that do not need access to the collected logs.",
+      "allowedPattern": "^$|^[_a-zA-Z0-9][-._a-zA-Z0-9]{2,62}$",
+      "type": "String",
+      "default": ""
+    },
+    "AutomationAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The IAM role for this execution. If no role is specified, AWS Systems Manager Automation will use the permissions of the user that executes this document.",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "assertInstanceIsWindows",
+      "action": "aws:assertAwsResourceProperty",
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "ec2",
+        "Api": "DescribeInstances",
+        "InstanceIds": [
+          "{{ InstanceId }}"
+        ],
+        "PropertySelector": "$.Reservations[0].Instances[0].Platform",
+        "DesiredValues": [
+          "windows"
+        ]
+      },
+      "isCritical": "true"
+    },
+    {
+      "name": "assertInstanceIsManagedInstance",
+      "action": "aws:assertAwsResourceProperty",
+      "onFailure": "step:assertAllowOffline",
+      "inputs": {
+        "Service": "ssm",
+        "Api": "DescribeInstanceInformation",
+        "InstanceInformationFilterList": [
+          {
+            "key": "InstanceIds",
+            "valueSet": [
+              "{{ InstanceId }}"
+            ]
+          }
+        ],
+        "PropertySelector": "$.InstanceInformationList[0].PingStatus",
+        "DesiredValues": [
+          "Online"
+        ]
+      },
+      "isCritical": "false",
+      "nextStep": "assertActionIsCustom"
+    },
+    {
+      "name": "assertActionIsCustom",
+      "action": "aws:assertAwsResourceProperty",
+      "onFailure": "step:assertActionIsCheckAll",
+      "inputs": {
+        "Service": "ssm",
+        "Api": "GetAutomationExecution",
+        "AutomationExecutionId": "{{ automation:EXECUTION_ID }}",
+        "PropertySelector": "AutomationExecution.Parameters.Action[0]",
+        "DesiredValues": [
+          "Custom"
+        ]
+      },
+      "isCritical": "false",
+      "nextStep": "manageFirewallProfiles"
+    },
+    {
+      "name": "manageFirewallProfiles",
+      "action": "aws:runCommand",
+      "onFailure": "Continue",
+      "inputs": {
+        "DocumentName": "AWS-RunPowerShellScript",
+        "InstanceIds": [
+          "{{ InstanceId }}"
+        ],
+        "Parameters": {
+          "commands": [
+            "Function Invoke-FirewallAction {",
+            "",
+            "    param (",
+            "        [Parameter(Mandatory = $true)]",
+            "        [ValidateSet(\"Check\", \"Disable\")] ",
+            "        [String]$FirewallAction",
+            "    )",
+            "",
+            "    Try {",
+            "",
+            "        If ( $FirewallAction -eq \"Check\") {",
+            "",
+            "            & \"${env:SYSTEMROOT}\\system32\\netsh.exe\" advfirewall show allprofiles ",
+            "",
+            "        }",
+            "        else {",
+            "",
+            "            #Turn off firewall (Domain, Private, Public profile)",
+            "            & \"${env:SYSTEMROOT}\\system32\\netsh.exe\" advfirewall set allprofiles state off > $null",
+            "            Write-Host \"All Windows firewall profiles have been disabled (Domain, Private, Public).\"",
+            "",
+            "        }",
+            "    }",
+            "    Catch {",
+            "",
+            "        throw \"Unable to apply action $FirewallAction to firewall. Reason: \" + $_.Exception.Message",
+            "",
+            "    }",
+            "",
+            "}",
+            "",
+            "Try {",
+            "",
+            "    #Input variables ",
+            "    $documentActionInput = \"{{ Action }}\"",
+            "    $firewallInput = \"{{ Firewall }}\"",
+            "",
+            "    switch ($documentActionInput) {",
+            "        \"Custom\" { $firewallAction = $firewallInput }",
+            "        \"CheckAll\" { $firewallAction = \"Check\" }",
+            "        \"FixAll\" { $firewallAction = \"Disable\" }",
+            "        default { throw \"Unexpected input.\"} ",
+            "    }",
+            "",
+            "    #Firewall Action",
+            "    Invoke-FirewallAction -FirewallAction $firewallAction",
+            "",
+            "}",
+            "Catch {",
+            "",
+            "    Write-Host $_.Exception.Message",
+            "    Exit 1",
+            "",
+            "}"
+          ]
+        }
+      },
+      "isCritical": "true",
+      "nextStep": "manageRDPServiceSettings"
+    },
+    {
+      "name": "manageRDPServiceSettings",
+      "action": "aws:executeAutomation",
+      "onFailure": "Continue",
+      "inputs": {
+        "DocumentName": "AWSSupport-ManageWindowsService",
+        "RuntimeParameters": {
+          "InstanceId": [
+            "{{ InstanceId }}"
+          ],
+          "WindowsServiceName": [
+            "TermService"
+          ],
+          "StartupType": [
+            "{{ RDPServiceStartupType }}"
+          ],
+          "ServiceAction": [
+            "{{ RDPServiceAction }}"
+          ]
+        }
+      },
+      "isCritical": "true",
+      "nextStep": "manageRDPSettings"
+    },
+    {
+      "name": "manageRDPSettings",
+      "action": "aws:executeAutomation",
+      "onFailure": "Abort",
+      "inputs": {
+        "DocumentName": "AWSSupport-ManageRDPSettings",
+        "RuntimeParameters": {
+          "InstanceId": [
+            "{{ InstanceId }}"
+          ],
+          "RDPPortAction": [
+            "{{ RDPPortAction }}"
+          ],
+          "RDPPort": [
+            "3389"
+          ],
+          "NLASettingAction": [
+            "{{ NLASettingAction }}"
+          ],
+          "RemoteConnections": [
+            "{{ RemoteConnections }}"
+          ]
+        }
+      },
+      "isEnd": "true"
+    },
+    {
+      "name": "assertActionIsCheckAll",
+      "action": "aws:assertAwsResourceProperty",
+      "onFailure": "step:assertActionIsFixAll",
+      "inputs": {
+        "Service": "ssm",
+        "Api": "GetAutomationExecution",
+        "AutomationExecutionId": "{{ automation:EXECUTION_ID }}",
+        "PropertySelector": "$.AutomationExecution.Parameters.Action[0]",
+        "DesiredValues": [
+          "CheckAll"
+        ]
+      },
+      "isCritical": "false",
+      "nextStep": "checkFirewallProfiles"
+    },
+    {
+      "name": "checkFirewallProfiles",
+      "action": "aws:runCommand",
+      "onFailure": "Continue",
+      "inputs": {
+        "DocumentName": "AWS-RunPowerShellScript",
+        "InstanceIds": [
+          "{{ InstanceId }}"
+        ],
+        "Parameters": {
+          "commands": [
+            "Function Invoke-FirewallAction {",
+            "",
+            "    param (",
+            "        [Parameter(Mandatory = $true)]",
+            "        [ValidateSet(\"Check\", \"Disable\")] ",
+            "        [String]$FirewallAction",
+            "    )",
+            "",
+            "    Try {",
+            "",
+            "        If ( $FirewallAction -eq \"Check\") {",
+            "",
+            "            & \"${env:SYSTEMROOT}\\system32\\netsh.exe\" advfirewall show allprofiles ",
+            "",
+            "        }",
+            "        else {",
+            "",
+            "            #Turn off firewall (Domain, Private, Public profile)",
+            "            & \"${env:SYSTEMROOT}\\system32\\netsh.exe\" advfirewall set allprofiles state off > $null",
+            "            Write-Host \"All Windows firewall profiles have been disabled (Domain, Private, Public).\"",
+            "",
+            "        }",
+            "    }",
+            "    Catch {",
+            "",
+            "        throw \"Unable to apply action $FirewallAction to firewall. Reason: \" + $_.Exception.Message",
+            "",
+            "    }",
+            "",
+            "}",
+            "",
+            "Try {",
+            "",
+            "    #Input variables ",
+            "    $documentActionInput = \"{{ Action }}\"",
+            "    $firewallInput = \"{{ Firewall }}\"",
+            "",
+            "    switch ($documentActionInput) {",
+            "        \"Custom\" { $firewallAction = $firewallInput }",
+            "        \"CheckAll\" { $firewallAction = \"Check\" }",
+            "        \"FixAll\" { $firewallAction = \"Disable\" }",
+            "        default { throw \"Unexpected input.\"} ",
+            "    }",
+            "",
+            "    #Firewall Action",
+            "    Invoke-FirewallAction -FirewallAction $firewallAction",
+            "",
+            "}",
+            "Catch {",
+            "",
+            "    Write-Host $_.Exception.Message",
+            "    Exit 1",
+            "",
+            "}"
+          ]
+        }
+      },
+      "isCritical": "true",
+      "nextStep": "checkRDPServiceSettings"
+    },
+    {
+      "name": "checkRDPServiceSettings",
+      "action": "aws:executeAutomation",
+      "onFailure": "Continue",
+      "inputs": {
+        "DocumentName": "AWSSupport-ManageWindowsService",
+        "RuntimeParameters": {
+          "InstanceId": [
+            "{{ InstanceId }}"
+          ],
+          "WindowsServiceName": [
+            "TermService"
+          ],
+          "StartupType": [
+            "Check"
+          ],
+          "ServiceAction": [
+            "Check"
+          ]
+        }
+      },
+      "isCritical": "true",
+      "nextStep": "checkRDPSettings"
+    },
+    {
+      "name": "checkRDPSettings",
+      "action": "aws:executeAutomation",
+      "onFailure": "Abort",
+      "inputs": {
+        "DocumentName": "AWSSupport-ManageRDPSettings",
+        "RuntimeParameters": {
+          "InstanceId": [
+            "{{ InstanceId }}"
+          ],
+          "RDPPortAction": [
+            "Check"
+          ],
+          "NLASettingAction": [
+            "Check"
+          ],
+          "RemoteConnections": [
+            "Check"
+          ]
+        }
+      },
+      "isEnd": "true"
+    },
+    {
+      "name": "assertActionIsFixAll",
+      "action": "aws:assertAwsResourceProperty",
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "ssm",
+        "Api": "GetAutomationExecution",
+        "AutomationExecutionId": "{{ automation:EXECUTION_ID }}",
+        "PropertySelector": "$.AutomationExecution.Parameters.Action[0]",
+        "DesiredValues": [
+          "FixAll"
+        ]
+      },
+      "nextStep": "disableFirewallProfiles"
+    },
+    {
+      "name": "disableFirewallProfiles",
+      "action": "aws:runCommand",
+      "onFailure": "Continue",
+      "inputs": {
+        "DocumentName": "AWS-RunPowerShellScript",
+        "InstanceIds": [
+          "{{ InstanceId }}"
+        ],
+        "Parameters": {
+          "commands": [
+            "Function Invoke-FirewallAction {",
+            "",
+            "    param (",
+            "        [Parameter(Mandatory = $true)]",
+            "        [ValidateSet(\"Check\", \"Disable\")] ",
+            "        [String]$FirewallAction",
+            "    )",
+            "",
+            "    Try {",
+            "",
+            "        If ( $FirewallAction -eq \"Check\") {",
+            "",
+            "            & \"${env:SYSTEMROOT}\\system32\\netsh.exe\" advfirewall show allprofiles ",
+            "",
+            "        }",
+            "        else {",
+            "",
+            "            #Turn off firewall (Domain, Private, Public profile)",
+            "            & \"${env:SYSTEMROOT}\\system32\\netsh.exe\" advfirewall set allprofiles state off > $null",
+            "            Write-Host \"All Windows firewall profiles have been disabled (Domain, Private, Public).\"",
+            "",
+            "        }",
+            "    }",
+            "    Catch {",
+            "",
+            "        throw \"Unable to apply action $FirewallAction to firewall. Reason: \" + $_.Exception.Message",
+            "",
+            "    }",
+            "",
+            "}",
+            "",
+            "Try {",
+            "",
+            "    #Input variables ",
+            "    $documentActionInput = \"{{ Action }}\"",
+            "    $firewallInput = \"{{ Firewall }}\"",
+            "",
+            "    switch ($documentActionInput) {",
+            "        \"Custom\" { $firewallAction = $firewallInput }",
+            "        \"CheckAll\" { $firewallAction = \"Check\" }",
+            "        \"FixAll\" { $firewallAction = \"Disable\" }",
+            "        default { throw \"Unexpected input.\"} ",
+            "    }",
+            "",
+            "    #Firewall Action",
+            "    Invoke-FirewallAction -FirewallAction $firewallAction",
+            "",
+            "}",
+            "Catch {",
+            "",
+            "    Write-Host $_.Exception.Message",
+            "    Exit 1",
+            "",
+            "}"
+          ]
+        }
+      },
+      "isCritical": "true",
+      "nextStep": "restoreDefaultRDPServiceSettings"
+    },
+    {
+      "name": "restoreDefaultRDPServiceSettings",
+      "action": "aws:executeAutomation",
+      "onFailure": "Continue",
+      "inputs": {
+        "DocumentName": "AWSSupport-ManageWindowsService",
+        "RuntimeParameters": {
+          "InstanceId": [
+            "{{ InstanceId }}"
+          ],
+          "WindowsServiceName": [
+            "TermService"
+          ],
+          "StartupType": [
+            "Auto"
+          ],
+          "ServiceAction": [
+            "Start"
+          ]
+        }
+      },
+      "isCritical": "true",
+      "nextStep": "restoreDefaultRDPSettings"
+    },
+    {
+      "name": "restoreDefaultRDPSettings",
+      "action": "aws:executeAutomation",
+      "onFailure": "Abort",
+      "inputs": {
+        "DocumentName": "AWSSupport-ManageRDPSettings",
+        "RuntimeParameters": {
+          "InstanceId": [
+            "{{ InstanceId }}"
+          ],
+          "RDPPortAction": [
+            "Modify"
+          ],
+          "RDPPort": [
+            "3389"
+          ],
+          "NLASettingAction": [
+            "Disable"
+          ],
+          "RemoteConnections": [
+            "Enable"
+          ]
+        }
+      },
+      "isEnd": "true"
+    },
+    {
+      "name": "assertAllowOffline",
+      "action": "aws:assertAwsResourceProperty",
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "ssm",
+        "Api": "GetAutomationExecution",
+        "AutomationExecutionId": "{{ automation:EXECUTION_ID }}",
+        "PropertySelector": "$.AutomationExecution.Parameters.AllowOffline[0]",
+        "DesiredValues": [
+          "True"
+        ]
+      },
+      "nextStep": "assertActionIsFixAllForOfflineBranch"
+    },
+    {
+      "name": "assertActionIsFixAllForOfflineBranch",
+      "action": "aws:assertAwsResourceProperty",
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "ssm",
+        "Api": "GetAutomationExecution",
+        "AutomationExecutionId": "{{ automation:EXECUTION_ID }}",
+        "PropertySelector": "$.AutomationExecution.Parameters.Action[0]",
+        "DesiredValues": [
+          "FixAll"
+        ]
+      },
+      "nextStep": "assertSubnetId"
+    },
+    {
+      "name": "assertSubnetId",
+      "action": "aws:assertAwsResourceProperty",
+      "onFailure": "step:troubleshootRDPOffline",
+      "inputs": {
+        "Service": "ssm",
+        "Api": "GetAutomationExecution",
+        "AutomationExecutionId": "{{ automation:EXECUTION_ID }}",
+        "PropertySelector": "$.AutomationExecution.Parameters.SubnetId[0]",
+        "DesiredValues": [
+          "SelectedInstanceSubnet"
+        ]
+      },
+      "isCritical": "false",
+      "nextStep": "describeSourceInstance"
+    },
+    {
+      "name": "describeSourceInstance",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "ec2",
+        "Api": "DescribeInstances",
+        "InstanceIds": [
+          "{{ InstanceId }}"
+        ]
+      },
+      "outputs": [
+        {
+          "Name": "SubnetId",
+          "Selector": "$.Reservations[0].Instances[0].NetworkInterfaces[0].SubnetId",
+          "Type": "String"
+        }
+      ],
+      "nextStep": "troubleshootRDPOfflineWithSubnetId"
+    },
+    {
+      "name": "troubleshootRDPOffline",
+      "action": "aws:executeAutomation",
+      "onFailure": "Abort",
+      "inputs": {
+        "RuntimeParameters": {
+          "UnreachableInstanceId": [
+            "{{ InstanceId }}"
+          ],
+          "SubnetId": [
+            "{{ SubnetId }}"
+          ],
+          "LogDestination": [
+            "{{ S3BucketName }}"
+          ],
+          "AssumeRole": [
+            "{{ AutomationAssumeRole }}"
+          ]
+        },
+        "DocumentName": "AWSSupport-ExecuteEC2Rescue"
+      },
+      "isEnd": "true"
+    },
+    {
+      "name": "troubleshootRDPOfflineWithSubnetId",
+      "action": "aws:executeAutomation",
+      "onFailure": "Abort",
+      "inputs": {
+        "RuntimeParameters": {
+          "UnreachableInstanceId": [
+            "{{ InstanceId }}"
+          ],
+          "SubnetId": [
+            "{{ describeSourceInstance.SubnetId }}"
+          ],
+          "LogDestination": [
+            "{{ S3BucketName }}"
+          ],
+          "AssumeRole": [
+            "{{ AutomationAssumeRole }}"
+          ]
+        },
+        "DocumentName": "AWSSupport-ExecuteEC2Rescue"
+      },
+      "isEnd": "true"
+    }
+  ],
+  "outputs": [
+    "manageFirewallProfiles.Output",
+    "manageRDPServiceSettings.Output",
+    "manageRDPSettings.Output",
+    "checkFirewallProfiles.Output",
+    "checkRDPServiceSettings.Output",
+    "checkRDPSettings.Output",
+    "disableFirewallProfiles.Output",
+    "restoreDefaultRDPServiceSettings.Output",
+    "restoreDefaultRDPSettings.Output",
+    "troubleshootRDPOffline.Output",
+    "troubleshootRDPOfflineWithSubnetId.Output"
+  ]
+}

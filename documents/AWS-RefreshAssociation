@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "2.0",
+  "description": "Refresh (force apply) the association on demand. This action will change the system state based on what is defined in the selected association or all associations bound to the targets.",
+  "parameters": {
+    "associationIds": {
+      "type": "StringList",
+      "description": "(Optional) List of association ids. If empty, all associations bound to the specified target are applied.",
+      "displayType": "textarea",
+      "default": []
+    }
+  },
+  "mainSteps": [
+    {
+      "action": "aws:refreshAssociation",
+      "name": "refreshAssociation",
+      "inputs": {
+        "associationIds": "{{ associationIds }}"
+      }
+    }
+  ]
+}

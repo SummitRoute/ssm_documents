@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.2",
+  "description": "Update the EC2Config service to the latest version or specify an older version.",
+  "parameters": {
+    "version": {
+      "default": "",
+      "description": "(Optional) A specific version of the EC2Config service to install. If not specified, the service will be updated to the latest version.",
+      "type": "String"
+    },
+    "allowDowngrade": {
+      "default": "false",
+      "description": "(Optional) Allow the EC2Config service to be downgraded to an earlier version. If set to false, the service can be upgraded to newer versions only (default). If set to true, specify the earlier version.",
+      "type": "String",
+      "allowedValues": [
+        "true",
+        "false"
+      ]
+    }
+  },
+  "runtimeConfig": {
+    "aws:updateAgent": {
+      "properties": {
+        "agentName": "Ec2Config",
+        "source": "https://s3.us-west-2.amazonaws.com/aws-ssm-us-west-2/manifest.json",
+        "allowDowngrade": "{{ allowDowngrade }}",
+        "targetVersion": "{{ version }}"
+      }
+    }
+  }
+}

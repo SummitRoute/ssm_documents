@@ -1,0 +1,238 @@
+{
+  "schemaVersion": "0.3",
+  "description": "The AWSSupport-TroubleshootSSH automation document installs the Amazon EC2Rescue tool for Linux, and then uses the EC2Rescue tool to check or attempt to fix common issues that prevent a remote connection to the Linux machine via SSH. Optionally, changes can be applied offline by stopping and starting the instance, if the user explicitly allows for offline remediation. By default, the document operates in read-only mode.",
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "parameters": {
+    "InstanceId": {
+      "type": "String",
+      "description": "(Required) ID of your EC2 Linux instance.",
+      "allowedPattern": "^[m]{0,1}i-[a-z0-9]{8,17}$"
+    },
+    "Action": {
+      "description": "(Required) Specify whether to check for issues without fixing them or to check and automatically fix any discovered issues.",
+      "type": "String",
+      "allowedValues": [
+        "CheckAll",
+        "FixAll"
+      ],
+      "default": "CheckAll"
+    },
+    "AllowOffline": {
+      "type": "String",
+      "description": "(Optional) Fix only - Set it to true if you allow an offline SSH remediation in case the online troubleshooting fails, or the provided instance is not a managed instance. Note: For the offline remediation, SSM Automation stops the instance, and creates an AMI before attempting any operations.",
+      "default": "False",
+      "allowedValues": [
+        "True",
+        "False"
+      ]
+    },
+    "SubnetId": {
+      "type": "String",
+      "description": "(Optional) Offline only - The subnet ID for the EC2Rescue instance used to perform the offline troubleshooting. If no subnet ID is specified, AWS Systems Manager Automation will create a new VPC. IMPORTANT: The subnet must be in the same Availability Zone as InstanceId, and it must allow access to the SSM endpoints.",
+      "default": "SelectedInstanceSubnet",
+      "allowedPattern": "^$|^subnet-[a-z0-9]{8,17}$|SelectedInstanceSubnet"
+    },
+    "S3BucketName": {
+      "description": "(Optional) Offline only - S3 bucket name in your account where you want to upload the troubleshooting logs. Make sure the bucket policy does not grant unnecessary read/write permissions to parties that do not need access to the collected logs.",
+      "allowedPattern": "^$|^[_a-zA-Z0-9][-._a-zA-Z0-9]{2,62}$",
+      "type": "String",
+      "default": ""
+    },
+    "AutomationAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The IAM role for this execution. If no role is specified, AWS Systems Manager Automation will use the permissions of the user that executes this document.",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "assertInstanceIsManagedInstance",
+      "action": "aws:assertAwsResourceProperty",
+      "onFailure": "step:assertAllowOffline",
+      "inputs": {
+        "Service": "ssm",
+        "Api": "DescribeInstanceInformation",
+        "InstanceInformationFilterList": [
+          {
+            "key": "InstanceIds",
+            "valueSet": [
+              "{{ InstanceId }}"
+            ]
+          }
+        ],
+        "PropertySelector": "$.InstanceInformationList[0].PingStatus",
+        "DesiredValues": [
+          "Online"
+        ]
+      },
+      "isCritical": "false",
+      "nextStep": "installEC2Rescue"
+    },
+    {
+      "name": "installEC2Rescue",
+      "action": "aws:runCommand",
+      "onFailure": "Abort",
+      "inputs": {
+        "DocumentName": "AWS-ConfigureAWSPackage",
+        "InstanceIds": [
+          "{{ InstanceId }}"
+        ],
+        "Parameters": {
+          "name": "AWSSupport-EC2Rescue",
+          "action": "Install",
+          "version": "latest"
+        }
+      },
+      "nextStep": "troubleshootSSH"
+    },
+    {
+      "name": "troubleshootSSH",
+      "action": "aws:runCommand",
+      "onFailure": "Abort",
+      "inputs": {
+        "DocumentName": "AWS-RunShellScript",
+        "InstanceIds": [
+          "{{ InstanceId }}"
+        ],
+        "Parameters": {
+          "commands": [
+            "#!/bin/sh ",
+            "error_trap() ",
+            "{ ",
+            "    printf \"%.s=\" $(seq 1 80) ",
+            "    printf \"The EC2Rescue execution did not complete successfully.\\\\n\" ",
+            "    exit 1 ",
+            "} ",
+            " ",
+            "REMEDIATE=\"\" ",
+            " ",
+            "if test {{ Action }} = \"FixAll\" ; then ",
+            "    REMEDIATE=\"--remediate\" ",
+            "fi ",
+            " ",
+            "printf \"Running EC2 Rescue for Linux\\\\n\" ",
+            "sudo ec2rl run ${REMEDIATE} --only-modules=openssh || error_trap "
+          ]
+        }
+      },
+      "isEnd": "true"
+    },
+    {
+      "name": "assertAllowOffline",
+      "action": "aws:assertAwsResourceProperty",
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "ssm",
+        "Api": "GetAutomationExecution",
+        "AutomationExecutionId": "{{ automation:EXECUTION_ID }}",
+        "PropertySelector": "$.AutomationExecution.Parameters.AllowOffline[0]",
+        "DesiredValues": [
+          "True"
+        ]
+      },
+      "nextStep": "assertActionIsFixAll"
+    },
+    {
+      "name": "assertActionIsFixAll",
+      "action": "aws:assertAwsResourceProperty",
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "ssm",
+        "Api": "GetAutomationExecution",
+        "AutomationExecutionId": "{{ automation:EXECUTION_ID }}",
+        "PropertySelector": "$.AutomationExecution.Parameters.Action[0]",
+        "DesiredValues": [
+          "FixAll"
+        ]
+      },
+      "nextStep": "assertSubnetId"
+    },
+    {
+      "name": "assertSubnetId",
+      "action": "aws:assertAwsResourceProperty",
+      "onFailure": "step:troubleshootSSHOffline",
+      "inputs": {
+        "Service": "ssm",
+        "Api": "GetAutomationExecution",
+        "AutomationExecutionId": "{{ automation:EXECUTION_ID }}",
+        "PropertySelector": "$.AutomationExecution.Parameters.SubnetId[0]",
+        "DesiredValues": [
+          "SelectedInstanceSubnet"
+        ]
+      },
+      "isCritical": "false",
+      "nextStep": "describeSourceInstance"
+    },
+    {
+      "name": "describeSourceInstance",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "ec2",
+        "Api": "DescribeInstances",
+        "InstanceIds": [
+          "{{ InstanceId }}"
+        ]
+      },
+      "outputs": [
+        {
+          "Name": "SubnetId",
+          "Selector": "$.Reservations[0].Instances[0].NetworkInterfaces[0].SubnetId",
+          "Type": "String"
+        }
+      ],
+      "nextStep": "troubleshootSSHOfflineWithSubnetId"
+    },
+    {
+      "name": "troubleshootSSHOffline",
+      "action": "aws:executeAutomation",
+      "onFailure": "Abort",
+      "inputs": {
+        "RuntimeParameters": {
+          "UnreachableInstanceId": [
+            "{{ InstanceId }}"
+          ],
+          "SubnetId": [
+            "{{ SubnetId }}"
+          ],
+          "LogDestination": [
+            "{{ S3BucketName }}"
+          ],
+          "AssumeRole": [
+            "{{ AutomationAssumeRole }}"
+          ]
+        },
+        "DocumentName": "AWSSupport-ExecuteEC2Rescue"
+      },
+      "isEnd": "true"
+    },
+    {
+      "name": "troubleshootSSHOfflineWithSubnetId",
+      "action": "aws:executeAutomation",
+      "onFailure": "Abort",
+      "inputs": {
+        "RuntimeParameters": {
+          "UnreachableInstanceId": [
+            "{{ InstanceId }}"
+          ],
+          "SubnetId": [
+            "{{ describeSourceInstance.SubnetId }}"
+          ],
+          "LogDestination": [
+            "{{ S3BucketName }}"
+          ],
+          "AssumeRole": [
+            "{{ AutomationAssumeRole }}"
+          ]
+        },
+        "DocumentName": "AWSSupport-ExecuteEC2Rescue"
+      },
+      "isEnd": "true"
+    }
+  ],
+  "outputs": [
+    "troubleshootSSH.Output",
+    "troubleshootSSHOffline.Output",
+    "troubleshootSSHOfflineWithSubnetId.Output"
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.2",
+  "description": "Export metrics and log files from your instances to Amazon CloudWatch.",
+  "parameters": {
+    "status": {
+      "type": "String",
+      "default": "Enabled",
+      "description": "(Optional) Enable or disable CloudWatch. Valid values: Enabled | Disabled",
+      "allowedValues": [
+        "Enabled",
+        "Disabled"
+      ]
+    },
+    "properties": {
+      "type": "String",
+      "default": "",
+      "description": "(Optional) The configuration for CloudWatch in JSON format. Learn more at https://docs.aws.amazon.com/systems-manager/latest/userguide/ssm-plugins.html#aws-cloudWatch",
+      "displayType": "textarea"
+    }
+  },
+  "runtimeConfig": {
+    "aws:cloudWatch": {
+      "settings": {
+        "startType": "{{ status }}"
+      },
+      "properties": "{{ properties }}"
+    }
+  }
+}

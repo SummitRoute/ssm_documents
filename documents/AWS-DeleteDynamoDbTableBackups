@@ -1,0 +1,76 @@
+{
+  "description": "Deletes DynamoDB table backups based on retention days 'OR' count.",
+  "schemaVersion": "0.3",
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "parameters": {
+    "TableName": {
+      "type": "String",
+      "description": "(Required) Name of the DynamoDB Table."
+    },
+    "RetentionCount": {
+      "type": "String",
+      "description": "(Optional) The number of backups to retain for the table. If more than the specified number of backup exist, the oldest backups beyond that number are deleted. Either RetentionCount or RetentionDays can  be used, not both.",
+      "default": "10"
+    },
+    "RetentionDays": {
+      "type": "String",
+      "description": "(Optional) The number of days to retain backups for the table. Backups older than the specified number of days are deleted. Either RetentionCount or RetentionDays can  be used, not both.",
+      "default": ""
+    },
+    "LambdaAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Lambda created by Automation to perform the actions on your behalf. If not specified a transient role will be created to execute the Lambda function.",
+      "default": ""
+    },
+    "AutomationAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf. ",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "createDocumentStack",
+      "action": "aws:createStack",
+      "inputs": {
+        "Capabilities": [
+          "CAPABILITY_IAM"
+        ],
+        "StackName": "DeleteDynamoDbTableBackupsLambaStack{{automation:EXECUTION_ID}}",
+        "Parameters": [
+          {
+            "ParameterKey": "LambdaRoleArn",
+            "ParameterValue": "{{LambdaAssumeRole}}"
+          },
+          {
+            "ParameterKey": "LambdaName",
+            "ParameterValue": "DeleteTableBackupsLambda-{{automation:EXECUTION_ID}}"
+          },
+          {
+            "ParameterKey": "TableName",
+            "ParameterValue": "{{TableName}}"
+          }
+        ],
+        "TemplateBody": "AWSTemplateFormatVersion: '2010-09-09'\nConditions:\n  LambdaAssumeRoleNotSpecified:\n    Fn::Or:\n    - Fn::Equals:\n      - {Ref: LambdaRoleArn}\n      - ''\n    - Fn::Equals:\n      - {Ref: LambdaRoleArn}\n      - undefined\nParameters:\n  LambdaName: {Description: 'The lambda function name\n\n      ', Type: String}\n  LambdaRoleArn: {Default: '', Description: 'The ARN of the role that allows Lambda\n      created by Automation to perform the action on your behalf\n\n      ', Type: String}\n  TableName: {Description: 'The name of the DynamoDB Table for which backups are deleted\n\n      ', Type: String}\nResources:\n  DeleteDynamoDbTableBackups:\n    Properties:\n      Code: {ZipFile: \"#\\n# Copyright 2018 Amazon.com, Inc. or its affiliates. All\\\n          \\ Rights Reserved.\\n#\\n# Permission is hereby granted, free of charge, to\\\n          \\ any person obtaining a copy of this\\n# software and associated documentation\\\n          \\ files (the \\\"Software\\\"), to deal in the Software\\n# without restriction,\\\n          \\ including without limitation the rights to use, copy, modify,\\n# merge,\\\n          \\ publish, distribute, sublicense, and/or sell copies of the Software, and\\\n          \\ to\\n# permit persons to whom the Software is furnished to do so.\\n#\\n\\\n          # THE SOFTWARE IS PROVIDED \\\"AS IS\\\", WITHOUT WARRANTY OF ANY KIND, EXPRESS\\\n          \\ OR IMPLIED,\\n# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\\\n          \\ FITNESS FOR A\\n# PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL\\\n          \\ THE AUTHORS OR COPYRIGHT\\n# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR\\\n          \\ OTHER LIABILITY, WHETHER IN AN ACTION\\n# OF CONTRACT, TORT OR OTHERWISE,\\\n          \\ ARISING FROM, OUT OF OR IN CONNECTION WITH THE\\n# SOFTWARE OR THE USE\\\n          \\ OR OTHER DEALINGS IN THE SOFTWARE.\\n#\\nimport boto3\\nfrom datetime import\\\n          \\ datetime, timedelta, tzinfo\\n\\nZERO = timedelta(0)\\n\\n\\nclass UTC(tzinfo):\\n\\\n          \\n\\tdef utcoffset(self, dt):\\n\\t\\treturn ZERO\\n\\n\\tdef tzname(self, dt):\\n\\\n          \\t\\treturn \\\"UTC\\\"\\n\\n\\tdef dst(self, dt):\\n\\t\\treturn ZERO\\n\\ndef handler(event,\\\n          \\ context):\\n\\n\\tdef get_table_backups(client, tablename):\\n\\n\\t\\targs =\\\n          \\ {\\n\\t\\t\\t\\\"TableName\\\" : tablename\\n\\t\\t}\\n\\n\\t\\twhile True:\\n\\t\\t\\tresp\\\n          \\ =  client.list_backups(**args)\\n\\t\\t\\tfor backup in resp.get(\\\"BackupSummaries\\\"\\\n          , []):\\n\\t\\t\\t\\tyield backup\\n\\t\\t\\tif \\\"LastEvaluatedBackupArn\\\" in resp:\\n\\\n          \\t\\t\\t\\targs[\\\"ExclusiveStartBackupArn\\\"] = resp[\\\"LastEvaluatedBackupArn\\\"\\\n          ]\\n\\t\\t\\telse:\\n\\t\\t\\t\\tbreak\\n\\n\\tclient = boto3.client(\\\"dynamodb\\\")\\n\\\n          \\n\\ttable_name = event[\\\"TableName\\\"].strip()\\n\\ttry:\\n\\t\\tretention_count\\\n          \\ = int(event.get(\\\"RetentionCount\\\", \\\"0\\\").strip('\\\"').strip())\\n\\texcept:\\n\\\n          \\t\\tretention_count = 0\\n\\n\\ttry:\\n\\t\\tretention_days = int(event.get(\\\"\\\n          RetentionDays\\\", \\\"0\\\").strip('\\\"').strip())\\n\\texcept:\\n\\t\\tretention_days\\\n          \\ = 0\\n\\n\\tif (retention_count == 0) and (retention_days == 0):\\n\\t\\traise\\\n          \\ ValueError(\\\"RetentionCount or RetentionDays parameter must be specified\\\"\\\n          )\\n\\n\\tif (retention_count > 0) and (retention_days > 0):\\n\\t\\traise ValueError(\\\"\\\n          Only one of RetentionCount or RetentionDays parameters can be specified\\\"\\\n          )\\n\\n\\tbackups = sorted(get_table_backups(client, table_name), key=lambda\\\n          \\ b: b[\\\"BackupCreationDateTime\\\"], reverse=True)\\n\\n\\tdeleting = []\\n\\n\\\n          \\tdelete_before = datetime.utcnow().replace(tzinfo=UTC()) - timedelta(days=int(retention_days))\\n\\\n          \\n\\tif retention_days > 0:\\n\\t\\ti = 0\\n\\t\\twhile i < len(backups):\\n\\t\\t\\\n          \\tif backups[i][\\\"BackupCreationDateTime\\\"] < delete_before:\\n\\t\\t\\t\\tdeleting.append(backups.pop(i)[\\\"\\\n          BackupArn\\\"])\\n\\t\\t\\telse:\\n\\t\\t\\t\\ti += 1\\n\\n\\tif retention_count > 0:\\n\\\n          \\t\\tif retention_count > 0:\\n\\t\\t\\tdeleting += [b[\\\"BackupArn\\\"] for b in\\\n          \\ backups[retention_count:]]\\n\\n\\tfor backup_arn in deleting:\\n\\t\\tclient.delete_backup(BackupArn=backup_arn)\\n\\\n          \\n\\treturn {\\n\\t\\t\\\"DeletedBackupsArns\\\": deleting\\n\\t}\\n\\n\"}\n      FunctionName: {Ref: LambdaName}\n      Handler: index.handler\n      MemorySize: 128\n      Role:\n        Fn::If:\n        - LambdaAssumeRoleNotSpecified\n        - Fn::GetAtt: [LambdaRole, Arn]\n        - {Ref: LambdaRoleArn}\n      Runtime: python2.7\n      Timeout: 60\n    Type: AWS::Lambda::Function\n  LambdaRole:\n    Condition: LambdaAssumeRoleNotSpecified\n    Properties:\n      AssumeRolePolicyDocument:\n        Statement:\n        - Action: ['sts:AssumeRole']\n          Effect: Allow\n          Principal:\n            Service: [lambda.amazonaws.com]\n        Version: '2012-10-17'\n      Path: /\n      Policies:\n      - PolicyDocument:\n          Statement:\n          - Action: ['dynamodb:ListBackups']\n            Effect: Allow\n            Resource: '*'\n          - Action: ['dynamodb:DeleteBackup']\n            Effect: Allow\n            Resource:\n              Fn::Join:\n              - ''\n              - - Fn::Join:\n                  - ':'\n                  - - arn:aws:dynamodb\n                    - {Ref: 'AWS::Region'}\n                    - {Ref: 'AWS::AccountId'}\n                    - table/\n                - {Ref: TableName}\n                - /backup/*\n          Version: '2012-10-17'\n        PolicyName: DeleteDynamoDbTableBackupsLambdaPolicy\n    Type: AWS::IAM::Role\n"
+      }
+    },
+    {
+      "name": "deleteDynamoDbTableBackups",
+      "action": "aws:invokeLambdaFunction",
+      "inputs": {
+        "FunctionName": "DeleteTableBackupsLambda-{{automation:EXECUTION_ID}}",
+        "Payload": "{\"TableName\": \"{{TableName}}\", \"RetentionCount\": \"{{RetentionCount}}\", \"RetentionDays\": \"{{RetentionDays}}\"}"
+      }
+    },
+    {
+      "name": "deleteCloudFormationTemplate",
+      "action": "aws:deleteStack",
+      "inputs": {
+        "StackName": "DeleteDynamoDbTableBackupsLambaStack{{automation:EXECUTION_ID}}"
+      }
+    }
+  ],
+  "outputs": [
+    "deleteDynamoDbTableBackups.Payload"
+  ]
+}

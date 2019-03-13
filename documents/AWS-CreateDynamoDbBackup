@@ -1,0 +1,83 @@
+{
+  "description": "Create DynamoDB table backup",
+  "schemaVersion": "0.3",
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "parameters": {
+    "TableName": {
+      "type": "String",
+      "description": "(Required) Name of the DynamoDB Table."
+    },
+    "BackupName": {
+      "type": "String",
+      "description": "(Required) Name of the backup to create."
+    },
+    "LambdaAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Lambda created by Automation to perform the actions on your behalf. If not specified a transient role will be created to execute the Lambda function.",
+      "default": ""
+    },
+    "AutomationAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf. ",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "createDocumentStack",
+      "action": "aws:createStack",
+      "inputs": {
+        "Capabilities": [
+          "CAPABILITY_IAM"
+        ],
+        "StackName": "CreateDynamoDbBackupLambdaStack{{automation:EXECUTION_ID}}",
+        "Parameters": [
+          {
+            "ParameterKey": "LambdaRoleArn",
+            "ParameterValue": "{{LambdaAssumeRole}}"
+          },
+          {
+            "ParameterKey": "CreateBackupLambdaName",
+            "ParameterValue": "CreateDynamoDBBackup-{{automation:EXECUTION_ID}}"
+          },
+          {
+            "ParameterKey": "VerifySnapshotLambdaName",
+            "ParameterValue": "VerifyDynamoDBBackup-{{automation:EXECUTION_ID}}"
+          },
+          {
+            "ParameterKey": "TableName",
+            "ParameterValue": "{{TableName}}"
+          }
+        ],
+        "TemplateBody": "AWSTemplateFormatVersion: '2010-09-09'\nConditions:\n  LambdaAssumeRoleNotSpecified:\n    Fn::Or:\n    - Fn::Equals:\n      - {Ref: LambdaRoleArn}\n      - ''\n    - Fn::Equals:\n      - {Ref: LambdaRoleArn}\n      - undefined\nParameters:\n  CreateBackupLambdaName: {Description: 'The lambda function name\n\n      ', Type: String}\n  LambdaRoleArn: {Default: '', Description: 'The ARN of the role that allows Lambda\n      created by Automation to perform the action on your behalf\n\n      ', Type: String}\n  TableName: {Description: 'The name of the DynamoDB Table\n\n      ', Type: String}\n  VerifySnapshotLambdaName: {Description: 'The lambda function name\n\n      ', Type: String}\nResources:\n  CreateDynamoDbBackup:\n    Properties:\n      Code: {ZipFile: \"#\\n# Copyright 2018 Amazon.com, Inc. or its affiliates. All\\\n          \\ Rights Reserved.\\n#\\n# Permission is hereby granted, free of charge, to\\\n          \\ any person obtaining a copy of this\\n# software and associated documentation\\\n          \\ files (the \\\"Software\\\"), to deal in the Software\\n# without restriction,\\\n          \\ including without limitation the rights to use, copy, modify,\\n# merge,\\\n          \\ publish, distribute, sublicense, and/or sell copies of the Software, and\\\n          \\ to\\n# permit persons to whom the Software is furnished to do so.\\n#\\n\\\n          # THE SOFTWARE IS PROVIDED \\\"AS IS\\\", WITHOUT WARRANTY OF ANY KIND, EXPRESS\\\n          \\ OR IMPLIED,\\n# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\\\n          \\ FITNESS FOR A\\n# PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL\\\n          \\ THE AUTHORS OR COPYRIGHT\\n# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR\\\n          \\ OTHER LIABILITY, WHETHER IN AN ACTION\\n# OF CONTRACT, TORT OR OTHERWISE,\\\n          \\ ARISING FROM, OUT OF OR IN CONNECTION WITH THE\\n# SOFTWARE OR THE USE\\\n          \\ OR OTHER DEALINGS IN THE SOFTWARE.\\n#\\nimport boto3\\nfrom datetime import\\\n          \\ datetime\\n\\nVAL_TABLE_NAME = \\\"TableName\\\"\\nVAL_DATE = \\\"Date\\\"\\nVAL_DATETIME\\\n          \\ = \\\"Datetime\\\"\\nVAL_TIME = \\\"Time\\\"\\nVAL_EXECUTION_ID = \\\"ExecutionId\\\"\\\n          \\n\\nVAL_STR = \\\"{{{}}}\\\"\\n\\n\\ndef placeholder_data(ctx, tag_vars):\\n\\tdef\\\n          \\ clean(s):\\n\\t\\treturn s.replace(\\\":\\\", \\\"\\\").replace(\\\"T\\\", \\\"\\\").replace(\\\"\\\n          -\\\", \\\"\\\")\\n\\n\\tdt = datetime.now().replace(microsecond=0)\\n\\tdata = {\\n\\\n          \\t\\tVAL_DATETIME: clean(dt.isoformat()),\\n\\t\\tVAL_DATE: clean(dt.date().isoformat()),\\n\\\n          \\t\\tVAL_TIME: clean(dt.time().isoformat()),\\n\\t\\tVAL_EXECUTION_ID: \\\"-\\\"\\\n          .join(ctx.function_name.split(\\\"-\\\")[-5:]) if ctx is not None else \\\"\\\"\\n\\\n          \\t}\\n\\n\\tif tag_vars is not None:\\n\\t\\tfor t in tag_vars:\\n\\t\\t\\tdata[t]\\\n          \\ = tag_vars[t]\\n\\treturn data\\n\\n\\ndef template_string(s, context, s_vars=None):\\n\\\n          \\tif s == \\\"\\\":\\n\\t\\treturn \\\"\\\"\\n\\n\\tplaceholders = placeholder_data(ctx=context,\\\n          \\ tag_vars=s_vars)\\n\\tfor p in placeholders:\\n\\t\\ts = s.replace(VAL_STR.format(p),\\\n          \\ str(placeholders[p]))\\n\\treturn s\\n\\n\\ndef handler(event, context):\\n\\t\\\n          client = boto3.client(\\\"dynamodb\\\")\\n\\n\\ttable_name = event[\\\"TableName\\\"\\\n          ].strip()\\n\\tbackup_name = template_string(event[\\\"BackupName\\\"].strip(),\\\n          \\ context, {VAL_TABLE_NAME: table_name})\\n\\n\\tresp = client.create_backup(TableName=table_name,\\\n          \\ BackupName=backup_name)\\n\\n\\treturn resp[\\\"BackupDetails\\\"][\\\"BackupArn\\\"\\\n          ]\\n\\n\\n\"}\n      FunctionName: {Ref: CreateBackupLambdaName}\n      Handler: index.handler\n      MemorySize: 128\n      Role:\n        Fn::If:\n        - LambdaAssumeRoleNotSpecified\n        - Fn::GetAtt: [LambdaRole, Arn]\n        - {Ref: LambdaRoleArn}\n      Runtime: python2.7\n      Timeout: 60\n    Type: AWS::Lambda::Function\n  LambdaRole:\n    Condition: LambdaAssumeRoleNotSpecified\n    Properties:\n      AssumeRolePolicyDocument:\n        Statement:\n        - Action: ['sts:AssumeRole']\n          Effect: Allow\n          Principal:\n            Service: [lambda.amazonaws.com]\n        Version: '2012-10-17'\n      Path: /\n      Policies:\n      - PolicyDocument:\n          Statement:\n          - Action: ['dynamodb:DescribeBackup']\n            Effect: Allow\n            Resource: '*'\n          - Action: ['dynamodb:CreateBackup']\n            Effect: Allow\n            Resource:\n              Fn::Join:\n              - ''\n              - - Fn::Join:\n                  - ':'\n                  - - arn:aws:dynamodb\n                    - {Ref: 'AWS::Region'}\n                    - {Ref: 'AWS::AccountId'}\n                    - table/\n                - {Ref: TableName}\n          Version: '2012-10-17'\n        PolicyName: CreateDynamoDbBackupLambdaPolicy\n    Type: AWS::IAM::Role\n  VerifyDynamoDbBackup:\n    Properties:\n      Code: {ZipFile: \"#\\n# Copyright 2018 Amazon.com, Inc. or its affiliates. All\\\n          \\ Rights Reserved.\\n#\\n# Permission is hereby granted, free of charge, to\\\n          \\ any person obtaining a copy of this\\n# software and associated documentation\\\n          \\ files (the \\\"Software\\\"), to deal in the Software\\n# without restriction,\\\n          \\ including without limitation the rights to use, copy, modify,\\n# merge,\\\n          \\ publish, distribute, sublicense, and/or sell copies of the Software, and\\\n          \\ to\\n# permit persons to whom the Software is furnished to do so.\\n#\\n\\\n          # THE SOFTWARE IS PROVIDED \\\"AS IS\\\", WITHOUT WARRANTY OF ANY KIND, EXPRESS\\\n          \\ OR IMPLIED,\\n# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\\\n          \\ FITNESS FOR A\\n# PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL\\\n          \\ THE AUTHORS OR COPYRIGHT\\n# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR\\\n          \\ OTHER LIABILITY, WHETHER IN AN ACTION\\n# OF CONTRACT, TORT OR OTHERWISE,\\\n          \\ ARISING FROM, OUT OF OR IN CONNECTION WITH THE\\n# SOFTWARE OR THE USE\\\n          \\ OR OTHER DEALINGS IN THE SOFTWARE.\\n#\\nimport boto3\\nimport time\\n\\ndb_client\\\n          \\ = boto3.client('dynamodb')\\n\\n\\ndef handler(event, context):\\n\\tbackup_arn\\\n          \\ = event[\\\"BackupArn\\\"]\\n\\n\\twhile True:\\n\\t\\ttry:\\n\\t\\t\\tstatus = db_client.describe_backup(BackupArn=backup_arn)[\\\"\\\n          BackupDescription\\\"][\\\"BackupDetails\\\"][\\\"BackupStatus\\\"]\\n\\t\\t\\tif status\\\n          \\ == \\\"AVAILABLE\\\":\\n\\t\\t\\t\\treturn\\n\\n\\t\\t\\ttime.sleep(10)\\n\\n\\t\\texcept\\\n          \\ Exception as e:\\n\\t\\t\\tprint(e)\\n\\t\\t\\ttime.sleep(10)\\n\\t\\t\\tpass\\n\"}\n      FunctionName: {Ref: VerifySnapshotLambdaName}\n      Handler: index.handler\n      MemorySize: 128\n      Role:\n        Fn::If:\n        - LambdaAssumeRoleNotSpecified\n        - Fn::GetAtt: [LambdaRole, Arn]\n        - {Ref: LambdaRoleArn}\n      Runtime: python2.7\n      Timeout: 300\n    Type: AWS::Lambda::Function\n"
+      }
+    },
+    {
+      "name": "createDynamoDbBackup",
+      "action": "aws:invokeLambdaFunction",
+      "inputs": {
+        "FunctionName": "CreateDynamoDBBackup-{{automation:EXECUTION_ID}}",
+        "Payload": "{\"TableName\": \"{{TableName}}\", \"BackupName\": \"{{BackupName}}\"}"
+      }
+    },
+    {
+      "name": "verifyBackup",
+      "action": "aws:invokeLambdaFunction",
+      "maxAttempts": 10,
+      "inputs": {
+        "FunctionName": "VerifyDynamoDBBackup-{{automation:EXECUTION_ID}}",
+        "Payload": "{\"BackupArn\": \"{{createDynamoDbBackup.Payload}}\"}"
+      }
+    },
+    {
+      "name": "deleteCloudFormationTemplate",
+      "action": "aws:deleteStack",
+      "inputs": {
+        "StackName": "CreateDynamoDbBackupLambdaStack{{automation:EXECUTION_ID}}"
+      }
+    }
+  ],
+  "outputs": [
+    "createDynamoDbBackup.Payload"
+  ]
+}

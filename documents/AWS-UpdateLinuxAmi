@@ -1,0 +1,158 @@
+{
+  "schemaVersion": "0.3",
+  "description": "Updates AMI with Linux distribution packages and Amazon software. For details,see https://docs.aws.amazon.com/systems-manager/latest/userguide/automation-awsdocs-linux.html",
+  "assumeRole": "{{AutomationAssumeRole}}",
+  "parameters": {
+    "SourceAmiId": {
+      "type": "String",
+      "description": "(Required) The source Amazon Machine Image ID."
+    },
+    "IamInstanceProfileName": {
+      "type": "String",
+      "description": "(Required) The instance profile that enables Systems Manager (SSM) to manage the instance.",
+      "default": "ManagedInstanceProfile"
+    },
+    "AutomationAssumeRole": {
+      "type": "String",
+      "description": "(Required) The ARN of the role that allows Automation to perform the actions on your behalf.",
+      "default": "arn:aws:iam::{{global:ACCOUNT_ID}}:role/AutomationServiceRole"
+    },
+    "TargetAmiName": {
+      "type": "String",
+      "description": "(Optional) The name of the new AMI that will be created. Default is a system-generated string including the source AMI id, and the creation time and date.",
+      "default": "UpdateLinuxAmi_from_{{SourceAmiId}}_on_{{global:DATE_TIME}}"
+    },
+    "InstanceType": {
+      "type": "String",
+      "description": "(Optional) Type of instance to launch as the workspace host. Instance types vary by region. Default is t2.micro.",
+      "default": "t2.micro"
+    },
+    "PreUpdateScript": {
+      "type": "String",
+      "description": "(Optional) URL of a script to run before updates are applied. Default (\"none\") is to not run a script.",
+      "default": "none"
+    },
+    "PostUpdateScript": {
+      "type": "String",
+      "description": "(Optional) URL of a script to run after package updates are applied. Default (\"none\") is to not run a script.",
+      "default": "none"
+    },
+    "IncludePackages": {
+      "type": "String",
+      "description": "(Optional) Only update these named packages. By default (\"all\"), all available updates are applied.",
+      "default": "all"
+    },
+    "ExcludePackages": {
+      "type": "String",
+      "description": "(Optional) Names of packages to hold back from updates, under all conditions. By default (\"none\"), no package is excluded.",
+      "default": "none"
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "launchInstance",
+      "action": "aws:runInstances",
+      "maxAttempts": 3,
+      "timeoutSeconds": 1200,
+      "onFailure": "Abort",
+      "inputs": {
+        "ImageId": "{{SourceAmiId}}",
+        "InstanceType": "{{InstanceType}}",
+        "UserData": "IyEvYmluL2Jhc2gNCg0KZnVuY3Rpb24gZ2V0X2NvbnRlbnRzKCkgew0KICAgIGlmIFsgLXggIiQod2hpY2ggY3VybCkiIF07IHRoZW4NCiAgICAgICAgY3VybCAtcyAtZiAiJDEiDQogICAgZWxpZiBbIC14ICIkKHdoaWNoIHdnZXQpIiBdOyB0aGVuDQogICAgICAgIHdnZXQgIiQxIiAtTyAtDQogICAgZWxzZQ0KICAgICAgICBkaWUgIk5vIGRvd25sb2FkIHV0aWxpdHkgKGN1cmwsIHdnZXQpIg0KICAgIGZpDQp9DQoNCnJlYWRvbmx5IElERU5USVRZX1VSTD0iaHR0cDovLzE2OS4yNTQuMTY5LjI1NC8yMDE2LTA2LTMwL2R5bmFtaWMvaW5zdGFuY2UtaWRlbnRpdHkvZG9jdW1lbnQvIg0KcmVhZG9ubHkgVFJVRV9SRUdJT049JChnZXRfY29udGVudHMgIiRJREVOVElUWV9VUkwiIHwgYXdrIC1GXCIgJy9yZWdpb24vIHsgcHJpbnQgJDQgfScpDQpyZWFkb25seSBERUZBVUxUX1JFR0lPTj0idXMtZWFzdC0xIg0KcmVhZG9ubHkgUkVHSU9OPSIke1RSVUVfUkVHSU9OOi0kREVGQVVMVF9SRUdJT059Ig0KDQpyZWFkb25seSBTQ1JJUFRfTkFNRT0iYXdzLWluc3RhbGwtc3NtLWFnZW50Ig0KcmVhZG9ubHkgU0NSSVBUX1VSTD0iaHR0cHM6Ly9hd3Mtc3NtLWRvd25sb2Fkcy0kUkVHSU9OLnMzLmFtYXpvbmF3cy5jb20vc2NyaXB0cy8kU0NSSVBUX05BTUUiDQoNCmNkIC90bXANCkZJTEVfU0laRT0wDQpNQVhfUkVUUllfQ09VTlQ9Mw0KUkVUUllfQ09VTlQ9MA0KDQp3aGlsZSBbICRSRVRSWV9DT1VOVCAtbHQgJE1BWF9SRVRSWV9DT1VOVCBdIDsgZG8NCiAgZWNobyBBV1MtVXBkYXRlTGludXhBbWk6IERvd25sb2FkaW5nIHNjcmlwdCBmcm9tICRTQ1JJUFRfVVJMDQogIGdldF9jb250ZW50cyAiJFNDUklQVF9VUkwiID4gIiRTQ1JJUFRfTkFNRSINCiAgRklMRV9TSVpFPSQoZHUgLWsgL3RtcC8kU0NSSVBUX05BTUUgfCBjdXQgLWYxKQ0KICBlY2hvIEFXUy1VcGRhdGVMaW51eEFtaTogRmluaXNoZWQgZG93bmxvYWRpbmcgc2NyaXB0LCBzaXplOiAkRklMRV9TSVpFDQogIGlmIFsgJEZJTEVfU0laRSAtZ3QgMCBdOyB0aGVuDQogICAgYnJlYWsNCiAgZWxzZQ0KICAgIGlmIFtbICRSRVRSWV9DT1VOVCAtbHQgTUFYX1JFVFJZX0NPVU5UIF1dOyB0aGVuDQogICAgICBSRVRSWV9DT1VOVD0kKChSRVRSWV9DT1VOVCsxKSk7DQogICAgICBlY2hvIEFXUy1VcGRhdGVMaW51eEFtaTogRmlsZVNpemUgaXMgMCwgcmV0cnlDb3VudDogJFJFVFJZX0NPVU5UDQogICAgZmkNCiAgZmkgDQpkb25lDQoNCmlmIFsgJEZJTEVfU0laRSAtZ3QgMCBdOyB0aGVuDQogIGNobW9kICt4ICIkU0NSSVBUX05BTUUiDQogIGVjaG8gQVdTLVVwZGF0ZUxpbnV4QW1pOiBSdW5uaW5nIFVwZGF0ZVNTTUFnZW50IHNjcmlwdCBub3cgLi4uLg0KICAuLyIkU0NSSVBUX05BTUUiIC0tcmVnaW9uICIkUkVHSU9OIg0KZWxzZQ0KICBlY2hvIEFXUy1VcGRhdGVMaW51eEFtaTogVW5hYmxlIHRvIGRvd25sb2FkIHNjcmlwdCwgcXVpdHRpbmcgLi4uLg0KZmkNCg==",
+        "MinInstanceCount": 1,
+        "MaxInstanceCount": 1,
+        "IamInstanceProfileName": "{{IamInstanceProfileName}}"
+      }
+    },
+    {
+      "name": "verifySsmInstall",
+      "action": "aws:runCommand",
+      "maxAttempts": 3,
+      "timeoutSeconds": 1200,
+      "onFailure": "Abort",
+      "inputs": {
+        "DocumentName": "AWS-RunShellScript",
+        "InstanceIds": [
+          "{{launchInstance.InstanceIds}}"
+        ],
+        "Parameters": {
+          "commands": [
+            "hostname"
+          ]
+        }
+      }
+    },
+    {
+      "name": "updateOSSoftware",
+      "action": "aws:runCommand",
+      "maxAttempts": 3,
+      "timeoutSeconds": 3600,
+      "onFailure": "Abort",
+      "inputs": {
+        "DocumentName": "AWS-RunShellScript",
+        "InstanceIds": [
+          "{{launchInstance.InstanceIds}}"
+        ],
+        "Parameters": {
+          "commands": [
+            "set -e",
+            "[ -x \"$(which wget)\" ] && get_contents='wget $1 -O -'",
+            "[ -x \"$(which curl)\" ] && get_contents='curl -s -f $1'",
+            "if [[ {{global:REGION}} == 'us-gov-'* ]]",
+            "then",
+            "eval $get_contents https://s3-fips-{{global:REGION}}.amazonaws.com/aws-ssm-downloads-{{global:REGION}}/scripts/aws-update-linux-instance > /var/lib/amazon/ssm/aws-update-linux-instance",
+            "elif [[ {{global:REGION}} == 'cn-'* ]]",
+            "then",
+            "eval $get_contents https://aws-ssm-downloads-{{global:REGION}}.s3.{{global:REGION}}.amazonaws.com.cn/scripts/aws-update-linux-instance > /var/lib/amazon/ssm/aws-update-linux-instance",
+            "else",
+            "eval $get_contents https://aws-ssm-downloads-{{global:REGION}}.s3.amazonaws.com/scripts/aws-update-linux-instance > /var/lib/amazon/ssm/aws-update-linux-instance",
+            "fi",
+            "chmod +x /var/lib/amazon/ssm/aws-update-linux-instance",
+            "/var/lib/amazon/ssm/aws-update-linux-instance --pre-update-script '{{PreUpdateScript}}' --post-update-script '{{PostUpdateScript}}' --include-packages '{{IncludePackages}}' --exclude-packages '{{ExcludePackages}}' 2>&1 | tee /tmp/aws-update-linux-instance.log",
+            "rm -rf /var/lib/amazon/ssm/aws-update-linux-instance"
+          ]
+        }
+      }
+    },
+    {
+      "name": "stopInstance",
+      "action": "aws:changeInstanceState",
+      "maxAttempts": 3,
+      "timeoutSeconds": 1200,
+      "onFailure": "Abort",
+      "inputs": {
+        "InstanceIds": [
+          "{{launchInstance.InstanceIds}}"
+        ],
+        "DesiredState": "stopped"
+      }
+    },
+    {
+      "name": "createImage",
+      "action": "aws:createImage",
+      "maxAttempts": 3,
+      "onFailure": "Abort",
+      "inputs": {
+        "InstanceId": "{{launchInstance.InstanceIds}}",
+        "ImageName": "{{TargetAmiName}}",
+        "NoReboot": true,
+        "ImageDescription": "AMI Generated by EC2 Automation on {{global:DATE_TIME}} from {{SourceAmiId}}"
+      }
+    },
+    {
+      "name": "terminateInstance",
+      "action": "aws:changeInstanceState",
+      "maxAttempts": 3,
+      "onFailure": "Continue",
+      "inputs": {
+        "InstanceIds": [
+          "{{launchInstance.InstanceIds}}"
+        ],
+        "DesiredState": "terminated"
+      }
+    }
+  ],
+  "outputs": [
+    "createImage.ImageId"
+  ]
+}

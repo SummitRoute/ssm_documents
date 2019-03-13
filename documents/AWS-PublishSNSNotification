@@ -1,0 +1,32 @@
+{
+  "description": "Publish SNS Notification",
+  "schemaVersion": "0.3",
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "parameters": {
+    "TopicArn": {
+      "type": "String",
+      "description": "(Required) The ARN of the SNS topic to publish the notification to."
+    },
+    "Message": {
+      "type": "String",
+      "description": "(Required) The message to include in the SNS notification."
+    },
+    "AutomationAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf.",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "PublishSNSNotification",
+      "action": "aws:executeAwsApi",
+      "inputs": {
+        "Service": "sns",
+        "Api": "Publish",
+        "TopicArn": "{{TopicArn}}",
+        "Message": "{{Message}}"
+      }
+    }
+  ]
+}

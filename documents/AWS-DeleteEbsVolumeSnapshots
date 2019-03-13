@@ -1,0 +1,72 @@
+{
+  "description": "Delete EBS Volume snapshots",
+  "schemaVersion": "0.3",
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "parameters": {
+    "VolumeId": {
+      "type": "String",
+      "description": "(Required) The volume identifier to delete snapshots for."
+    },
+    "RetentionCount": {
+      "type": "String",
+      "description": "(Optional) Number of snapshots to keep for the volume.  Either RetentionCount or RetentionDays should be mentioned, not both.",
+      "default": "10"
+    },
+    "RetentionDays": {
+      "type": "String",
+      "description": "(Optional) Number of days to keep snapshots for the volume. Either RetentionCount or RetentionDays should be mentioned, not both",
+      "default": ""
+    },
+    "LambdaAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Lambda created by Automation to perform the actions on your behalf. If not specified a transient role will be created to execute the Lambda function.",
+      "default": ""
+    },
+    "AutomationAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf.",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "createDocumentStack",
+      "action": "aws:createStack",
+      "inputs": {
+        "Capabilities": [
+          "CAPABILITY_IAM"
+        ],
+        "StackName": "deleteVolumeSnapshotsLambdaStack{{automation:EXECUTION_ID}}",
+        "Parameters": [
+          {
+            "ParameterKey": "LambdaRoleArn",
+            "ParameterValue": "{{LambdaAssumeRole}}"
+          },
+          {
+            "ParameterKey": "LambdaName",
+            "ParameterValue": "DeleteVolumeSnapshotsLambda-{{automation:EXECUTION_ID}}"
+          }
+        ],
+        "TemplateBody": "AWSTemplateFormatVersion: '2010-09-09'\nConditions:\n  LambdaAssumeRoleNotSpecified:\n    Fn::Or:\n    - Fn::Equals:\n      - {Ref: LambdaRoleArn}\n      - ''\n    - Fn::Equals:\n      - {Ref: LambdaRoleArn}\n      - undefined\nParameters:\n  LambdaName: {Description: 'The lambda function name\n\n      ', Type: String}\n  LambdaRoleArn: {Default: '', Description: 'The ARN of the role that allows Lambda\n      created by Automation to perform the action on your behalf\n\n      ', Type: String}\nResources:\n  DeleteSnapshotsLambda:\n    Properties:\n      Code: {ZipFile: \"#\\n# Copyright 2018 Amazon.com, Inc. or its affiliates. All\\\n          \\ Rights Reserved.\\n#\\n# Permission is hereby granted, free of charge, to\\\n          \\ any person obtaining a copy of this\\n# software and associated documentation\\\n          \\ files (the \\\"Software\\\"), to deal in the Software\\n# without restriction,\\\n          \\ including without limitation the rights to use, copy, modify,\\n# merge,\\\n          \\ publish, distribute, sublicense, and/or sell copies of the Software, and\\\n          \\ to\\n# permit persons to whom the Software is furnished to do so.\\n#\\n\\\n          # THE SOFTWARE IS PROVIDED \\\"AS IS\\\", WITHOUT WARRANTY OF ANY KIND, EXPRESS\\\n          \\ OR IMPLIED,\\n# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\\\n          \\ FITNESS FOR A\\n# PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL\\\n          \\ THE AUTHORS OR COPYRIGHT\\n# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR\\\n          \\ OTHER LIABILITY, WHETHER IN AN ACTION\\n# OF CONTRACT, TORT OR OTHERWISE,\\\n          \\ ARISING FROM, OUT OF OR IN CONNECTION WITH THE\\n# SOFTWARE OR THE USE\\\n          \\ OR OTHER DEALINGS IN THE SOFTWARE.\\n#\\n\\nimport boto3\\nimport time\\nfrom\\\n          \\ datetime import datetime, timedelta, tzinfo\\n\\nZERO = timedelta(0)\\n\\n\\\n          \\nclass UTC(tzinfo):\\n\\n\\tdef utcoffset(self, dt):\\n\\t\\treturn ZERO\\n\\n\\t\\\n          def tzname(self, dt):\\n\\t\\treturn \\\"UTC\\\"\\n\\n\\tdef dst(self, dt):\\n\\t\\t\\\n          return ZERO\\n\\n\\ndef get_volume_snapshots(client, volume_id):\\n\\targs =\\\n          \\ {\\n\\t\\t\\\"Filters\\\": [\\n\\t\\t\\t{\\n\\t\\t\\t\\t\\\"Name\\\": \\\"volume-id\\\",\\n\\t\\t\\\n          \\t\\t\\\"Values\\\": [volume_id]},\\n\\t\\t\\t{\\n\\t\\t\\t\\t\\\"Name\\\": \\\"status\\\",\\n\\t\\\n          \\t\\t\\t\\\"Values\\\": [\\\"completed\\\"]\\n\\t\\t\\t}\\n\\t\\t],\\n\\t\\t\\\"OwnerIds\\\": [\\\"\\\n          self\\\"]\\n\\n\\t}\\n\\tsnapshots = []\\n\\twhile True:\\n\\t\\tresp = client.describe_snapshots(**args)\\n\\\n          \\t\\tsnapshots += resp.get(\\\"Snapshots\\\", [])\\n\\t\\tif \\\"NextToken\\\" in resp:\\n\\\n          \\t\\t\\targs[\\\"NextToken\\\"] = resp[\\\"NextToken\\\"]\\n\\t\\telse:\\n\\t\\t\\tbreak\\n\\\n          \\n\\treturn snapshots\\n\\n\\ndef delete_snapshot(client, snapshot_id):\\n\\t\\\n          wait_period = 5\\n\\tretries = 5\\n\\twhile True:\\n\\t\\ttry:\\n\\t\\t\\tclient.delete_snapshot(SnapshotId=snapshot_id)\\n\\\n          \\t\\t\\treturn True\\n\\t\\texcept Exception as ex:\\n\\t\\t\\t# As the list of snapshot\\\n          \\ is eventually consistent old snapshots might appear in listed snapshots\\n\\\n          \\t\\t\\tif getattr(ex, \\\"response\\\", {}).get(\\\"Error\\\", {}).get(\\\"Code\\\",\\\n          \\ \\\"\\\") == \\\"'InvalidSnapshot.NotFound\\\":\\n\\t\\t\\t\\treturn False\\n\\t\\t\\t\\\n          # Throttling might occur when deleting snapshots too fast\\n\\t\\t\\tif \\\"throttling\\\"\\\n          \\ in ex.message.lower():\\n\\t\\t\\t\\tretries -= 1\\n\\t\\t\\t\\tif retries == 0:\\n\\\n          \\t\\t\\t\\t\\traise ex\\n\\t\\t\\t\\ttime.sleep(wait_period)\\n\\t\\t\\t\\twait_period\\\n          \\ = min(wait_period + 10 , 30)\\n\\t\\t\\t\\tcontinue\\n\\t\\t\\traise ex\\n\\n\\ndef\\\n          \\ handler(event, context):\\n\\tclient = boto3.client(\\\"ec2\\\")\\n\\n\\tsnapshot_id\\\n          \\ = event[\\\"VolumeId\\\"].strip()\\n\\ttry:\\n\\t\\tretention_count = int(event.get(\\\"\\\n          RetentionCount\\\", \\\"0\\\").strip('\\\"').strip())\\n\\texcept:\\n\\t\\tretention_count\\\n          \\ = 0\\n\\n\\ttry:\\n\\t\\tretention_days = int(event.get(\\\"RetentionDays\\\", \\\"\\\n          0\\\").strip('\\\"').strip())\\n\\texcept:\\n\\t\\tretention_days = 0\\n\\n\\tif (retention_count\\\n          \\ == 0) and (retention_days == 0):\\n\\t\\traise ValueError(\\\"RetentionCount\\\n          \\ or RetentionDays parameter must be specified\\\")\\n\\n\\tif (retention_count\\\n          \\ > 0) and (retention_days > 0):\\n\\t\\traise ValueError(\\\"Only one of RetentionCount\\\n          \\ or RetentionDays parameters can be specified\\\")\\n\\n\\tsnapshots_for_volume\\\n          \\ = sorted(get_volume_snapshots(client, snapshot_id), key=lambda s: s[\\\"\\\n          StartTime\\\"], reverse=True)\\n\\n\\tsnapshots_to_delete = []\\n\\n\\tif retention_days\\\n          \\ > 0:\\n\\t\\tdelete_before = datetime.utcnow().replace(tzinfo=UTC()) - timedelta(days=int(retention_days))\\n\\\n          \\t\\ti = 0\\n\\t\\twhile i < len(snapshots_for_volume):\\n\\t\\t\\tif snapshots_for_volume[i][\\\"\\\n          StartTime\\\"] < delete_before:\\n\\t\\t\\t\\tsnapshots_to_delete.append(snapshots_for_volume.pop(i)[\\\"\\\n          SnapshotId\\\"])\\n\\t\\t\\telse:\\n\\t\\t\\t\\ti += 1\\n\\n\\telif retention_count >\\\n          \\ 0:\\n\\t\\tsnapshots_to_delete = [b[\\\"SnapshotId\\\"] for b in snapshots_for_volume[retention_count:]]\\n\\\n          \\n\\tsnapshots_deleted = []\\n\\tfor snapshot_id in snapshots_to_delete:\\n\\t\\\n          \\tif delete_snapshot(client, snapshot_id):\\n\\t\\t\\tsnapshots_deleted.append(snapshot_id)\\n\\\n          \\n\\treturn {\\n\\t\\t\\\"DeletedSnapshots\\\": snapshots_deleted\\n\\t}\\n\"}\n      FunctionName: {Ref: LambdaName}\n      Handler: index.handler\n      MemorySize: 128\n      Role:\n        Fn::If:\n        - LambdaAssumeRoleNotSpecified\n        - Fn::GetAtt: [LambdaRole, Arn]\n        - {Ref: LambdaRoleArn}\n      Runtime: python2.7\n      Timeout: 60\n    Type: AWS::Lambda::Function\n  LambdaRole:\n    Condition: LambdaAssumeRoleNotSpecified\n    Properties:\n      AssumeRolePolicyDocument:\n        Statement:\n        - Action: ['sts:AssumeRole']\n          Effect: Allow\n          Principal:\n            Service: [lambda.amazonaws.com]\n        Version: '2012-10-17'\n      Path: /\n      Policies:\n      - PolicyDocument:\n          Statement:\n            Action: ['ec2:DescribeSnapshots', 'ec2:DeleteSnapshot']\n            Effect: Allow\n            Resource: '*'\n          Version: '2012-10-17'\n        PolicyName: DeleteVolumeSnapshotsLambdaPolicy\n    Type: AWS::IAM::Role\n"
+      }
+    },
+    {
+      "name": "deleteVolumeSnapshots",
+      "action": "aws:invokeLambdaFunction",
+      "inputs": {
+        "FunctionName": "DeleteVolumeSnapshotsLambda-{{automation:EXECUTION_ID}}",
+        "Payload": "{\"VolumeId\": \"{{VolumeId}}\", \"RetentionCount\": \"{{RetentionCount}}\", \"RetentionDays\": \"{{RetentionDays}}\"}"
+      }
+    },
+    {
+      "name": "deleteCloudFormationTemplate",
+      "action": "aws:deleteStack",
+      "inputs": {
+        "StackName": "deleteVolumeSnapshotsLambdaStack{{automation:EXECUTION_ID}}"
+      }
+    }
+  ],
+  "outputs": [
+    "deleteVolumeSnapshots.Payload"
+  ]
+}

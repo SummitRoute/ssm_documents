@@ -1,0 +1,81 @@
+{
+  "description": "Manage EC2 instance",
+  "schemaVersion": "0.3",
+  "assumeRole": "{{AutomationAssumeRole}}",
+  "parameters": {
+    "InstanceId": {
+      "type": "String",
+      "description": "(Required) EC2 InstanceId to manage"
+    },
+    "RoleName": {
+      "type": "String",
+      "description": "(Optional) The name of the IAM Role for the EC2 Instance. If this Role does not exist, it will be created. When specifying this value, the caller should ensure the Role contains the AWS Managed Policy \"AmazonEC2RoleForSsm\".",
+      "default": "SSMRoleForManagedInstance"
+    },
+    "AutomationAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf.",
+      "default": ""
+    },
+    "LambdaAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Lambda created by Automation to perform the actions on your behalf. If not specified a transient role will be created to execute the Lambda function.",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "setupManagedRole",
+      "action": "aws:executeAutomation",
+      "onFailure": "Abort",
+      "inputs": {
+        "DocumentName": "AWS-SetupManagedRoleOnEc2Instance",
+        "RuntimeParameters": {
+          "InstanceId": [
+            "{{InstanceId}}"
+          ],
+          "RoleName": [
+            "{{RoleName}}"
+          ],
+          "LambdaAssumeRole": [
+            "{{LambdaAssumeRole}}"
+          ],
+          "AutomationAssumeRole": [
+            "{{AutomationAssumeRole}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "updateSsmAgent",
+      "action": "aws:runCommand",
+      "maxAttempts": 1,
+      "onFailure": "Abort",
+      "inputs": {
+        "DocumentName": "AWS-UpdateSSMAgent",
+        "InstanceIds": [
+          "{{InstanceId}}"
+        ]
+      }
+    },
+    {
+      "name": "configureCloudWatch",
+      "action": "aws:executeAutomation",
+      "onFailure": "Abort",
+      "inputs": {
+        "DocumentName": "AWS-ConfigureCloudWatchOnEC2Instance",
+        "RuntimeParameters": {
+          "InstanceId": [
+            "{{InstanceId}}"
+          ],
+          "LambdaAssumeRole": [
+            "{{LambdaAssumeRole}}"
+          ],
+          "AutomationAssumeRole": [
+            "{{AutomationAssumeRole}}"
+          ]
+        }
+      }
+    }
+  ]
+}

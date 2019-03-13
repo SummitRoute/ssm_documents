@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "2.2",
+  "description": "Execute composite or nested Systems Manager documents (SSM documents) stored in a remote location. The following remote locations are currently supported: GitHub (public and private), Amazon S3 (S3), and Systems Manager documents. The following SSM document types are currently supported: JSON and YAML.",
+  "parameters": {
+    "sourceType": {
+      "description": "(Required) Specify the source type.",
+      "type": "String",
+      "allowedValues": [
+        "GitHub",
+        "S3",
+        "SSMDocument"
+      ]
+    },
+    "sourceInfo": {
+      "description": "(Required) Specify the information required to access the resource from the source. If source type is GitHub, then you can specify any of the following: 'owner', 'repository', 'path', 'getOptions', 'tokenInfo'. If source type is S3, then you can specify 'path'. If source type is SSM document, then you can specify 'name'.",
+      "type": "StringMap",
+      "displayType": "textarea",
+      "default": {}
+    },
+    "documentParameters": {
+      "description": "(Optional) Parameters to be passed to the SSM document that will be executed.",
+      "type": "StringMap",
+      "displayType": "textarea",
+      "default": {}
+    }
+  },
+  "mainSteps": [
+    {
+      "action": "aws:downloadContent",
+      "name": "downloadContent",
+      "inputs": {
+        "sourceType": "{{ sourceType }}",
+        "sourceInfo": "{{ sourceInfo }}",
+        "destinationPath": "ssmdocument"
+      }
+    },
+    {
+      "action": "aws:runDocument",
+      "name": "runDocument",
+      "inputs": {
+        "documentType": "LocalPath",
+        "documentPath": "ssmdocument",
+        "documentParameters": "{{ documentParameters }}"
+      }
+    }
+  ]
+}

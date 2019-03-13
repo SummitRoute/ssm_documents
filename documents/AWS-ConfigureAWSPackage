@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "2.0",
+  "description": "Install or uninstall the latest version or specified version of a package. For example, some standard packages are AwsEnaNetworkDriver, AWSPVDriver, and IntelSriovDriver.",
+  "parameters": {
+    "action": {
+      "description": "(Required) Specify whether or not to install or uninstall the package.",
+      "type": "String",
+      "allowedValues": [
+        "Install",
+        "Uninstall"
+      ]
+    },
+    "name": {
+      "description": "(Required) The package to install/uninstall.",
+      "type": "String",
+      "allowedPattern": "^arn:[a-z0-9][-.a-z0-9]{0,62}:[a-z0-9][-.a-z0-9]{0,62}:([a-z0-9][-.a-z0-9]{0,62})?:([a-z0-9][-.a-z0-9]{0,62})?:(package|document)\\/[a-zA-Z][a-zA-Z0-9\\-_]{0,39}$|^[a-zA-Z][a-zA-Z0-9\\-_]{0,39}$"
+    },
+    "version": {
+      "description": "(Optional) A specific version of the package to install or uninstall.  If installing, the system installs the latest published version, by default. If uninstalling, the system uninstalls the currently installed version, by default. If no installed version is found, the latest published version is downloaded, and the uninstall action is run.",
+      "type": "String",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "action": "aws:configurePackage",
+      "name": "configurePackage",
+      "inputs": {
+        "name": "{{ name }}",
+        "action": "{{ action }}",
+        "version": "{{ version }}"
+      }
+    }
+  ]
+}

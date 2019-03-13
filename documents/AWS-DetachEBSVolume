@@ -1,0 +1,63 @@
+{
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "description": "Detach EBS Volume",
+  "parameters": {
+    "VolumeId": {
+      "type": "String",
+      "description": "(Required) The ID of the EBS volume. The volume and instance must be within the same Availability Zone"
+    },
+    "LambdaAssumeRole": {
+      "default": "",
+      "type": "String",
+      "description": "(Optional) The ARN of the role assumed by lambda"
+    },
+    "AutomationAssumeRole": {
+      "default": "",
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf. "
+    }
+  },
+  "outputs": [
+    "detachVolume.LogResult"
+  ],
+  "schemaVersion": "0.3",
+  "mainSteps": [
+    {
+      "action": "aws:createStack",
+      "inputs": {
+        "StackName": "DetachEBSVolumeStack{{automation:EXECUTION_ID}}",
+        "TemplateBody": "AWSTemplateFormatVersion: '2010-09-09'\nConditions:\n  LambdaAssumeRoleNotSpecified:\n    Fn::Or:\n    - Fn::Equals:\n      - {Ref: LambdaRoleArn}\n      - ''\n    - Fn::Equals:\n      - {Ref: LambdaRoleArn}\n      - undefined\nDescription: Automation Stack for Detach EBS Volumes\nParameters:\n  LambdaName: {Description: 'The lambda function name\n\n      ', Type: String}\n  LambdaRoleArn: {Default: '', Description: 'The ARN of the role that allows Lambda\n      created by Automation to perform the action on your behalf\n\n      ', Type: String}\nResources:\n  DetachVolumeLambda:\n    Properties:\n      Code: {ZipFile: \"import boto3\\nimport time\\nimport logging\\n\\nlogger = logging.getLogger()\\n\\\n          logger.setLevel(logging.INFO)\\n\\n\\ndef handler(event, context):\\n\\tec2 =\\\n          \\ boto3.resource('ec2')\\n\\n\\tvolume_id = event[\\\"VolumeId\\\"]\\n\\tvolume =\\\n          \\ ec2.Volume(volume_id)\\n\\tvolume.detach_from_instance()\\n\\n\\tretry_count\\\n          \\ = 0\\n\\tattachment_state = 'detaching'\\n\\n\\twhile retry_count < 35:\\n\\n\\\n          \\t\\tretry_count += 1\\n\\t\\tvolume.reload()\\n\\n\\t\\tif len(volume.attachments)\\\n          \\ == 0:\\n\\t\\t\\tattachment_state = 'detached'\\n\\t\\t\\tbreak\\n\\t\\tattachment_state\\\n          \\ = volume.attachments[0]['State']\\n\\t\\tif attachment_state == 'detached'\\\n          \\ or attachment_state == 'busy':\\n\\t\\t\\tbreak\\n\\n\\t\\ttime.sleep(1)\\n\\t\\t\\\n          logger.info(\\\"Current Attachment State:\\\" + attachment_state + \\\", tries:\\\"\\\n          \\ + str(retry_count))\\n\\n\\tlogger.info(\\\"Last Attachment State:\\\" + attachment_state\\\n          \\ + \\\", tries:\\\" + str(retry_count))\\n\\n\\tif attachment_state == 'busy':\\n\\\n          \\t\\tlogger.warn('Volume still mounted. Will detach once volume is unmounted\\\n          \\ from instance.')\\n\\t\\traise Exception('Volume still mounted. Will detach\\\n          \\ once volume is unmounted from instance.')\\n\\n\\tif attachment_state !=\\\n          \\ 'detached':\\n\\t\\traise Exception('Failed to detach volume.  Current state\\\n          \\ is:' + attachment_state)\\n\\n\"}\n      FunctionName: {Ref: LambdaName}\n      Handler: index.handler\n      MemorySize: 128\n      Role:\n        Fn::If:\n        - LambdaAssumeRoleNotSpecified\n        - Fn::GetAtt: [LambdaRole, Arn]\n        - {Ref: LambdaRoleArn}\n      Runtime: python2.7\n      Timeout: 60\n    Type: AWS::Lambda::Function\n  LambdaRole:\n    Condition: LambdaAssumeRoleNotSpecified\n    Properties:\n      AssumeRolePolicyDocument:\n        Statement:\n        - Action: ['sts:AssumeRole']\n          Effect: Allow\n          Principal:\n            Service: [lambda.amazonaws.com]\n        Version: '2012-10-17'\n      Path: /\n      Policies:\n      - PolicyDocument:\n          Statement:\n            Action: ['ec2:DescribeVolumes', 'ec2:DetachVolume']\n            Effect: Allow\n            Resource: '*'\n          Version: '2012-10-17'\n        PolicyName: DetachVolumeLambdaPolicy\n    Type: AWS::IAM::Role\n",
+        "Parameters": [
+          {
+            "ParameterValue": "{{LambdaAssumeRole}}",
+            "ParameterKey": "LambdaRoleArn"
+          },
+          {
+            "ParameterValue": "DetachVolumeLambda-{{automation:EXECUTION_ID}}",
+            "ParameterKey": "LambdaName"
+          }
+        ],
+        "Capabilities": [
+          "CAPABILITY_IAM"
+        ]
+      },
+      "name": "createDocumentStack"
+    },
+    {
+      "action": "aws:invokeLambdaFunction",
+      "inputs": {
+        "LogType": "Tail",
+        "FunctionName": "DetachVolumeLambda-{{automation:EXECUTION_ID}}",
+        "Payload": "{\"VolumeId\": \"{{VolumeId}}\"}"
+      },
+      "name": "detachVolume"
+    },
+    {
+      "action": "aws:deleteStack",
+      "inputs": {
+        "StackName": "DetachEBSVolumeStack{{automation:EXECUTION_ID}}"
+      },
+      "name": "deleteCloudFormationTemplate"
+    }
+  ]
+}

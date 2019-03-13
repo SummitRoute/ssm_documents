@@ -1,0 +1,27 @@
+{
+  "description": "Delete DynamoDB table backup",
+  "schemaVersion": "0.3",
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "parameters": {
+    "BackupArn": {
+      "type": "String",
+      "description": "(Required) ARN of the DynamoDB table backup to delete."
+    },
+    "AutomationAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf.",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "DeleteDynamoDbBackup",
+      "action": "aws:executeAwsApi",
+      "inputs": {
+        "Service": "dynamodb",
+        "Api": "DeleteBackup",
+        "BackupArn": "{{BackupArn}}"
+      }
+    }
+  ]
+}

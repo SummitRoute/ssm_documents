@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "0.3",
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "description": "Copy Snapshot",
+  "parameters": {
+    "SnapshotId": {
+      "type": "String",
+      "description": "(Required) The ID of the EBS snapshot to copy."
+    },
+    "SourceRegion": {
+      "type": "String",
+      "description": "(Required) The region where the source snapshot currently exists."
+    },
+    "Description": {
+      "default": "",
+      "type": "String",
+      "description": "(Optional) A description for the EBS snapshot."
+    },
+    "LambdaAssumeRole": {
+      "default": "",
+      "type": "String",
+      "description": "(Optional) The ARN of the role assumed by lambda"
+    },
+    "AutomationAssumeRole": {
+      "default": "",
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf."
+    }
+  },
+  "outputs": [
+    "copySnapshot.Payload"
+  ],
+  "mainSteps": [
+    {
+      "action": "aws:createStack",
+      "inputs": {
+        "StackName": "CopySnapshotStack{{automation:EXECUTION_ID}}",
+        "Parameters": [
+          {
+            "ParameterValue": "{{LambdaAssumeRole}}",
+            "ParameterKey": "LambdaRoleArn"
+          },
+          {
+            "ParameterValue": "CopySnapshotLambda-{{automation:EXECUTION_ID}}",
+            "ParameterKey": "LambdaName"
+          }
+        ],
+        "TemplateBody": "AWSTemplateFormatVersion: '2010-09-09'\nConditions:\n  LambdaAssumeRoleNotSpecified:\n    Fn::Or:\n    - Fn::Equals:\n      - {Ref: LambdaRoleArn}\n      - ''\n    - Fn::Equals:\n      - {Ref: LambdaRoleArn}\n      - undefined\nParameters:\n  LambdaName: {Description: 'The lambda function name\n\n      ', Type: String}\n  LambdaRoleArn: {Default: '', Description: 'Assume role used by the lambda function.\n      If not specified this template will create a temporarily role to be used by\n      the lambda created in this template.\n\n      ', Type: String}\nResources:\n  CopySnapshotLambda:\n    Properties:\n      Code: {ZipFile: \"#\\n# Copyright 2018 Amazon.com, Inc. or its affiliates. All\\\n          \\ Rights Reserved.\\n#\\n# Permission is hereby granted, free of charge, to\\\n          \\ any person obtaining a copy of this\\n# software and associated documentation\\\n          \\ files (the \\\"Software\\\"), to deal in the Software\\n# without restriction,\\\n          \\ including without limitation the rights to use, copy, modify,\\n# merge,\\\n          \\ publish, distribute, sublicense, and/or sell copies of the Software, and\\\n          \\ to\\n# permit persons to whom the Software is furnished to do so.\\n#\\n\\\n          # THE SOFTWARE IS PROVIDED \\\"AS IS\\\", WITHOUT WARRANTY OF ANY KIND, EXPRESS\\\n          \\ OR IMPLIED,\\n# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\\\n          \\ FITNESS FOR A\\n# PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL\\\n          \\ THE AUTHORS OR COPYRIGHT\\n# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR\\\n          \\ OTHER LIABILITY, WHETHER IN AN ACTION\\n# OF CONTRACT, TORT OR OTHERWISE,\\\n          \\ ARISING FROM, OUT OF OR IN CONNECTION WITH THE\\n# SOFTWARE OR THE USE\\\n          \\ OR OTHER DEALINGS IN THE SOFTWARE.\\n#\\nimport boto3\\n\\n\\ndef handler(event,\\\n          \\ context):\\n\\tec2_client = boto3.client(\\\"ec2\\\")\\n\\n\\tsnapshot_id = event[\\\"\\\n          SnapshotId\\\"]\\n\\tsource_region = event[\\\"SourceRegion\\\"]\\n\\tdescription\\\n          \\ = event[\\\"Description\\\"]\\n\\tresponse = ec2_client.copy_snapshot(\\n\\t\\t\\\n          Description=description,\\n\\t\\tSourceRegion=source_region,\\n\\t\\tSourceSnapshotId=snapshot_id\\n\\\n          \\t)\\n\\n\\treturn {\\n\\t\\t\\\"SnapshotId\\\": response[\\\"SnapshotId\\\"]\\n\\t}\\n\\n\"}\n      FunctionName: {Ref: LambdaName}\n      Handler: index.handler\n      MemorySize: 128\n      Role:\n        Fn::If:\n        - LambdaAssumeRoleNotSpecified\n        - Fn::GetAtt: [LambdaRole, Arn]\n        - {Ref: LambdaRoleArn}\n      Runtime: python2.7\n      Timeout: 60\n    Type: AWS::Lambda::Function\n  LambdaRole:\n    Condition: LambdaAssumeRoleNotSpecified\n    Properties:\n      AssumeRolePolicyDocument:\n        Statement:\n        - Action: ['sts:AssumeRole']\n          Effect: Allow\n          Principal:\n            Service: [lambda.amazonaws.com]\n        Version: '2012-10-17'\n      Path: /\n      Policies:\n      - PolicyDocument:\n          Statement:\n            Action: ['ec2:CopySnapshot']\n            Effect: Allow\n            Resource: '*'\n          Version: '2012-10-17'\n        PolicyName: CopySnapshotLambdaPolicy\n    Type: AWS::IAM::Role\n",
+        "Capabilities": [
+          "CAPABILITY_IAM"
+        ]
+      },
+      "name": "createDocumentStack"
+    },
+    {
+      "action": "aws:invokeLambdaFunction",
+      "inputs": {
+        "FunctionName": "CopySnapshotLambda-{{automation:EXECUTION_ID}}",
+        "Payload": "{\"SnapshotId\": \"{{SnapshotId}}\", \"SourceRegion\": \"{{SourceRegion}}\", \"Description\": \"{{Description}}\"}"
+      },
+      "name": "copySnapshot"
+    },
+    {
+      "action": "aws:deleteStack",
+      "inputs": {
+        "StackName": "CopySnapshotStack{{automation:EXECUTION_ID}}"
+      },
+      "name": "deleteCloudFormationTemplate"
+    }
+  ]
+}

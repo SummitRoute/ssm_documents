@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "2.0",
+  "description": "Use this document to run Salt States on Amazon EC2 managed instances. Specify either YAML text or the URL to download a YAML file containing the state. If you specify both, the URL parameter will be used.",
+  "parameters": {
+    "state": {
+      "type": "String",
+      "description": "(Optional) If you don't specify a URL, then you must specify the State YAML in this field.",
+      "default": "",
+      "displayType": "textarea"
+    },
+    "stateurl": {
+      "type": "String",
+      "description": "(Optional) If you don't specify YAML, then you must specify a URL where the state file is stored. You can specify the URL in the following formats: http://example.com/state.sls or s3://examplebucket/state.sls. For security reasons, you can't specify a URL with quotes.",
+      "default": "",
+      "allowedPattern": "^\\s*$|^(http|https|s3)://[^']*$"
+    },
+    "pillars": {
+      "type": "String",
+      "description": "(Optional) Additional variables to pass to Salt at runtime. They must be entered in the format '{\"test1\":\"value1\", \"test2\":\"value2\"}'",
+      "default": "{\"SSM\":\"True\"}",
+      "displayType": "textarea"
+    },
+    "test": {
+      "type": "String",
+      "description": " (Optional) Use the test parameter to perform a dry run of the Salt execution.",
+      "allowedValues": [
+        "True",
+        "False"
+      ],
+      "default": "False"
+    }
+  },
+  "mainSteps": [
+    {
+      "action": "aws:runShellScript",
+      "name": "runShellScript",
+      "inputs": {
+        "runCommand": [
+          "#!/bin/bash",
+          "salt-call --version",
+          "if [ $? -ne 0 ]; then",
+          " echo \"Salt is not installed. Please install Salt and rerun the command\" >&2",
+          " exit 1",
+          "fi",
+          "sudo mkdir -p /srv/salt",
+          "if [ -z \"{{state}}\" ] ; then",
+          " if [[ \"{{stateurl}}\" == http* ]]; then",
+          "   wget '{{stateurl}}' -O /srv/salt/state.sls",
+          "   if [ $? -ne 0 ]; then",
+          "       echo \"There was a problem downloading the salt state file. Make sure the URL is correct and that the state file exists.\" >&2",
+          "       exit 1",
+          "   fi",
+          " elif [[ \"{{stateurl}}\" == s3* ]] ; then",
+          "   aws --version",
+          "   if [ $? -ne 0 ]; then",
+          "       echo \"The AWS CLI is not installed. The CLI is required to process Amazon S3 URLs. Install the AWS CLI and run the command again.\" >&2",
+          "       exit 1",
+          "   fi",
+          "   aws s3 cp '{{stateurl}}' /srv/salt/state.sls",
+          " else",
+          " echo \"The salt state file  URL is not valid. Verify the URL and try again. \"",
+          " exit 1",
+          " fi",
+          "else",
+          " echo \"{{state}}\" > /srv/salt/state.sls",
+          "fi",
+          "if  [[ \"{{test}}\" == True ]] ; then",
+          "   sudo salt-call --local state.apply state test=True pillar='{{pillars}}'",
+          "   if [ $? -ne 0 ]; then",
+          "     exit 1",
+          "   fi",
+          "else",
+          "   sudo salt-call --local state.apply state pillar='{{pillars}}'",
+          "   if [ $? -ne 0 ]; then",
+          "     exit 1",
+          "   fi",
+          "fi",
+          "rm -f /srv/salt/state.sls"
+        ]
+      }
+    }
+  ]
+}

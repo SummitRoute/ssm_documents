@@ -1,0 +1,197 @@
+{
+  "schemaVersion": "0.3",
+  "description": "AWSSupport-TerminateIPMonitoringFromVPC terminates an IP monitoring test previously started by AWSSupport-SetupIPMonitoringFromVPC. Data related to the specified test ID will be deleted.",
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "parameters": {
+    "AutomationExecutionId": {
+      "type": "String",
+      "description": "(Required) AWSSupport-SetupIPMonitoringFromVPC automation execution ID of the test you want to terminate."
+    },
+    "SubnetId": {
+      "type": "String",
+      "description": "(Required) The subnet ID for the monitor instance.",
+      "allowedPattern": "^subnet-[a-z0-9]{8,17}$"
+    },
+    "InstanceId": {
+      "type": "String",
+      "description": "(Required) The instance ID for the monitor instance.",
+      "allowedPattern": "^i-[a-z0-9]{8,17}$"
+    },
+    "AutomationAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The IAM role for this execution. If no role is specified, AWS Systems Manager Automation will use the permissions of the user that executes this document.",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "assertInstanceIdIsAssociatedToTest",
+      "action": "aws:assertAwsResourceProperty",
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "ec2",
+        "Api": "DescribeTags",
+        "Filters": [
+          {
+            "Name": "tag:AutomationExecutionId",
+            "Values": [
+              "{{ AutomationExecutionId }}"
+            ]
+          }
+        ],
+        "PropertySelector": "$.Tags[0].ResourceId",
+        "DesiredValues": [
+          "{{ InstanceId }}"
+        ]
+      },
+      "isCritical": "true",
+      "nextStep": "assertSubnetIdIsAssociatedToTest"
+    },
+    {
+      "name": "assertSubnetIdIsAssociatedToTest",
+      "action": "aws:assertAwsResourceProperty",
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "ec2",
+        "Api": "DescribeInstances",
+        "InstanceIds": [
+          "{{ InstanceId }}"
+        ],
+        "PropertySelector": "$.Reservations[0].Instances[0].SubnetId",
+        "DesiredValues": [
+          "{{ SubnetId }}"
+        ]
+      },
+      "isCritical": "true",
+      "nextStep": "describeTestSecurityGroup"
+    },
+    {
+      "name": "describeTestSecurityGroup",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Continue",
+      "inputs": {
+        "Service": "ec2",
+        "Api": "DescribeSecurityGroups",
+        "Filters": [
+          {
+            "Name": "group-name",
+            "Values": [
+              "SetupIPMonitoringFromVPC_{{ AutomationExecutionId }}"
+            ]
+          }
+        ]
+      },
+      "outputs": [
+        {
+          "Name": "GroupId",
+          "Selector": "$.SecurityGroups[0].GroupId"
+        }
+      ],
+      "isCritical": "true",
+      "nextStep": "deleteDashboard"
+    },
+    {
+      "name": "deleteDashboard",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Continue",
+      "inputs": {
+        "Service": "cloudwatch",
+        "Api": "DeleteDashboards",
+        "DashboardNames": [
+          "{{ SubnetId }}_{{ InstanceId }}"
+        ]
+      },
+      "isCritical": "true",
+      "nextStep": "terminateInstance"
+    },
+    {
+      "name": "terminateInstance",
+      "action": "aws:changeInstanceState",
+      "onFailure": "Continue",
+      "inputs": {
+        "InstanceIds": [
+          "{{ InstanceId }}"
+        ],
+        "CheckStateOnly": false,
+        "DesiredState": "terminated"
+      },
+      "isCritical": "true",
+      "nextStep": "removeIAMRoleFromInstanceProfile"
+    },
+    {
+      "name": "removeIAMRoleFromInstanceProfile",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Continue",
+      "inputs": {
+        "Service": "iam",
+        "Api": "RemoveRoleFromInstanceProfile",
+        "RoleName": "SetupIPMonitoringFromVPC_{{ AutomationExecutionId }}",
+        "InstanceProfileName": "SetupIPMonitoringFromVPC_{{ AutomationExecutionId }}"
+      },
+      "isCritical": "true",
+      "nextStep": "deleteIAMInstanceProfile"
+    },
+    {
+      "name": "deleteIAMInstanceProfile",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Continue",
+      "inputs": {
+        "Service": "iam",
+        "Api": "DeleteInstanceProfile",
+        "InstanceProfileName": "SetupIPMonitoringFromVPC_{{ AutomationExecutionId }}"
+      },
+      "isCritical": "true",
+      "nextStep": "removeCloudWatchInlinePolicyFromEC2Role"
+    },
+    {
+      "name": "removeCloudWatchInlinePolicyFromEC2Role",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Continue",
+      "inputs": {
+        "Service": "iam",
+        "Api": "DeleteRolePolicy",
+        "RoleName": "SetupIPMonitoringFromVPC_{{ AutomationExecutionId }}",
+        "PolicyName": "SetupIPMonitoringFromVPC_CWPermissions"
+      },
+      "isCritical": "true",
+      "nextStep": "detachSSMManagedPolicyFromEC2Role"
+    },
+    {
+      "name": "detachSSMManagedPolicyFromEC2Role",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Continue",
+      "inputs": {
+        "Service": "iam",
+        "Api": "DetachRolePolicy",
+        "PolicyArn": "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM",
+        "RoleName": "SetupIPMonitoringFromVPC_{{ AutomationExecutionId }}"
+      },
+      "isCritical": "true",
+      "nextStep": "deleteEC2Role"
+    },
+    {
+      "name": "deleteEC2Role",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Continue",
+      "inputs": {
+        "Service": "iam",
+        "Api": "DeleteRole",
+        "RoleName": "SetupIPMonitoringFromVPC_{{ AutomationExecutionId }}"
+      },
+      "isCritical": "true",
+      "nextStep": "deleteSecurityGroup"
+    },
+    {
+      "name": "deleteSecurityGroup",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Continue",
+      "inputs": {
+        "Service": "ec2",
+        "Api": "DeleteSecurityGroup",
+        "GroupId": "{{ describeTestSecurityGroup.GroupId }}"
+      },
+      "isCritical": "true",
+      "isEnd": "true"
+    }
+  ]
+}

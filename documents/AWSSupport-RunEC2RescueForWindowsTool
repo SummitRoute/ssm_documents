@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "2.2",
+  "description": "Runs EC2Rescue for Windows on the Windows instance to perform the specified action.",
+  "parameters": {
+    "Command": {
+      "type": "String",
+      "description": "(Required) Choose one of: ResetAccess - Resets the local Administrator password and stores the new password in Parameter Store | CollectLogs: Collects troubleshooting logs from the Operating System, and uploads them to an S3 bucket in your account | FixAll: Attempts to fix an offline Windows root volume attached to the current instance",
+      "default": "ResetAccess",
+      "allowedValues": [
+        "ResetAccess",
+        "CollectLogs",
+        "FixAll"
+      ]
+    },
+    "Parameters": {
+      "type": "String",
+      "description": "(Required) Parameters for the command: ResetAccess - KMS Key ID to encrypt the new Administrator password | CollectLogs: S3 bucket to upload the logs to | FixAll: Device name for the offline remediation.",
+      "default": "alias/aws/ssm"
+    }
+  },
+  "mainSteps": [
+    {
+      "precondition": {
+        "StringEquals": [
+          "platformType",
+          "Windows"
+        ]
+      },
+      "action": "aws:configurePackage",
+      "maxAttempts": 3,
+      "name": "installEC2Rescue",
+      "inputs": {
+        "name": "AWSSupport-EC2Rescue",
+        "action": "Install",
+        "version": "latest"
+      }
+    },
+    {
+      "precondition": {
+        "StringEquals": [
+          "platformType",
+          "Windows"
+        ]
+      },
+      "action": "aws:runPowerShellScript",
+      "name": "runEC2RescueForWindows",
+      "inputs": {
+        "runCommand": [
+          "if(Get-Module -ListAvailable -Name AWSPowershell){ ",
+          "    Import-Module AWSPowershell, EC2Rescue ",
+          "    $command = \"{{ Command }}\" ",
+          "    $parameters = \"{{ Parameters }}\" ",
+          "    $parameters = $parameters.Trim() ",
+          "    if([string]::IsNullOrWhiteSpace($parameters)){ ",
+          "        Write-Host \"No parameters specified.\" ",
+          "        Exit 255 ",
+          "    } ",
+          "    switch ($command) { ",
+          "        FixAll {  ",
+          "            $output = Invoke-EC2RescueFixAll -BlockDeviceName $parameters ",
+          "            if(!$output){ ",
+          "                Write-Host \"Failed to rescue offline volume ${parameters}\" ",
+          "                Exit 255 ",
+          "            }else{ ",
+          "                Write-Host $output ",
+          "            } ",
+          "        } ",
+          "        CollectLogs { ",
+          "            $s3BucketName = $parameters ",
+          "            $s3Path = \"AWSSupport-RunEC2RescueForWindowsTool/\" ",
+          "            if(Test-S3Bucket -BucketName $s3BucketName){ ",
+          "                Write-Host \"Collecting logs from the current Windows instance.\" ",
+          "                $logFile = Invoke-EC2RescueCollectLogBundle -Logs \"all\"  ",
+          "                Write-Host \"Log collection completed. Uploading logs to S3 bucket ${s3BucketName} under path ${s3Path}.\" ",
+          "                Copy-EC2RescueLogBundleToS3 -FilePath $logFile -S3BucketName $s3BucketName -S3Path $s3Path ",
+          "                Write-Host \"Log upload completed.\" ",
+          "            }else{ ",
+          "                Write-Host (\"No S3 bucket called \" + $s3BucketName + \" found in the current AWS account, or access denied. Please specify an S3 bucket you own, and that this instance has access to.\") ",
+          "                Exit 255 ",
+          "            } ",
+          "        } ",
+          "        ResetAccess {  ",
+          "            Invoke-EC2RescueResetPasswordWithParameterStore -KMSKey $parameters ",
+          "        }  ",
+          "    } ",
+          "}else{ ",
+          "   Write-Host 'AWS Tools for Windows PowerShell not installed. Please install the latest version of the AWS Tools for Windows PowerShell and try again.' ",
+          "   Write-Host 'Download location: https://aws.amazon.com/powershell/' ",
+          "   Exit 255 ",
+          "}"
+        ]
+      }
+    }
+  ]
+}

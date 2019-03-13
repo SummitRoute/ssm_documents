@@ -1,0 +1,149 @@
+{
+  "description": "Enables Logging on S3 Bucket",
+  "schemaVersion": "0.3",
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "parameters": {
+    "BucketName": {
+      "type": "String",
+      "description": "(Required) The name of the S3 Bucket whose logging will be configured."
+    },
+    "GrantedPermission": {
+      "type": "String",
+      "description": "(Required) Logging permissions assigned to the Grantee for the bucket.",
+      "allowedValues": [
+        "FULL_CONTROL",
+        "READ",
+        "WRITE"
+      ]
+    },
+    "GranteeType": {
+      "type": "String",
+      "description": "(Required) Type of grantee",
+      "allowedValues": [
+        "CanonicalUser",
+        "AmazonCustomerByEmail",
+        "Group"
+      ]
+    },
+    "TargetBucket": {
+      "type": "String",
+      "description": "(Required) Specifies the bucket where you want Amazon S3 to store server access logs. You can have your logs delivered to any bucket that you own. You can also configure multiple buckets to deliver their logs to the same target bucket. In this case you should choose a different TargetPrefix for each source bucket so that the delivered log files can be distinguished by key."
+    },
+    "GranteeEmailAddress": {
+      "type": "String",
+      "description": "(Optional) Email address of the grantee.",
+      "default": ""
+    },
+    "GranteeId": {
+      "type": "String",
+      "description": "(Optional) The canonical user ID of the grantee.",
+      "default": ""
+    },
+    "GranteeUri": {
+      "type": "String",
+      "description": "(Optional) URI of the grantee group.",
+      "default": ""
+    },
+    "TargetPrefix": {
+      "type": "String",
+      "description": "(Optional) Specifies a prefix for the keys under which the log files will be stored.",
+      "default": "/"
+    },
+    "AutomationAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf.",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "PutBucketLoggingByUri",
+      "isCritical": false,
+      "action": "aws:executeAwsApi",
+      "onFailure": "step:PutBucketLoggingById",
+      "nextStep": "End",
+      "inputs": {
+        "Service": "s3",
+        "Api": "PutBucketLogging",
+        "Bucket": "{{BucketName}}",
+        "BucketLoggingStatus": {
+          "LoggingEnabled": {
+            "TargetBucket": "{{TargetBucket}}",
+            "TargetPrefix": "{{TargetPrefix}}",
+            "TargetGrants": [
+              {
+                "Grantee": {
+                  "Type": "{{GranteeType}}",
+                  "URI": "{{GranteeUri}}"
+                },
+                "Permission": "{{GrantedPermission}}"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "PutBucketLoggingById",
+      "isCritical": false,
+      "action": "aws:executeAwsApi",
+      "onFailure": "step:PutBucketLoggingByEmailAddress",
+      "nextStep": "End",
+      "inputs": {
+        "Service": "s3",
+        "Api": "PutBucketLogging",
+        "Bucket": "{{BucketName}}",
+        "BucketLoggingStatus": {
+          "LoggingEnabled": {
+            "TargetBucket": "{{TargetBucket}}",
+            "TargetPrefix": "{{TargetPrefix}}",
+            "TargetGrants": [
+              {
+                "Grantee": {
+                  "Type": "{{GranteeType}}",
+                  "ID": "{{GranteeId}}"
+                },
+                "Permission": "{{GrantedPermission}}"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "PutBucketLoggingByEmailAddress",
+      "isCritical": true,
+      "onFailure": "Abort",
+      "action": "aws:executeAwsApi",
+      "nextStep": "End",
+      "inputs": {
+        "Service": "s3",
+        "Api": "PutBucketLogging",
+        "Bucket": "{{BucketName}}",
+        "BucketLoggingStatus": {
+          "LoggingEnabled": {
+            "TargetBucket": "{{TargetBucket}}",
+            "TargetPrefix": "{{TargetPrefix}}",
+            "TargetGrants": [
+              {
+                "Grantee": {
+                  "Type": "{{GranteeType}}",
+                  "EmailAddress": "{{GranteeEmailAddress}}"
+                },
+                "Permission": "{{GrantedPermission}}"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "End",
+      "action": "aws:sleep",
+      "inputs": {
+        "Duration": "PT1S"
+      },
+      "isEnd": true
+    }
+  ]
+}

@@ -1,0 +1,105 @@
+{
+  "description": "Creates a Jira issue.",
+  "schemaVersion": "0.3",
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "parameters": {
+    "JiraUsername": {
+      "type": "String",
+      "description": "(Required) The name of the user the issue will be created with."
+    },
+    "SSMParameterName": {
+      "type": "String",
+      "description": "(Required) The name of an encrypted SSM Parameter containing the API key or password for the Jira user."
+    },
+    "JiraURL": {
+      "type": "String",
+      "description": "(Required) The url of the Jira instance."
+    },
+    "ProjectKey": {
+      "type": "String",
+      "description": "(Required) The key of the project the issue should be created in."
+    },
+    "IssueSummary": {
+      "type": "String",
+      "description": "(Required) A brief summary of the issue."
+    },
+    "IssueDescription": {
+      "type": "String",
+      "description": "(Required) A detailed description of the issue."
+    },
+    "IssueTypeName": {
+      "type": "String",
+      "description": "(Required) The name of the type of issue you want to create (ex. Task, Sub-task, Bug, etc)."
+    },
+    "PriorityName": {
+      "type": "String",
+      "description": "(Optional) The name of the priority of the issue.",
+      "default": ""
+    },
+    "AssigneeName": {
+      "type": "String",
+      "description": "(Optional) The username of the person the issue should be assigned to.",
+      "default": ""
+    },
+    "DueDate": {
+      "type": "String",
+      "description": "(Optional) The due date for the issue in yyyy-mm-dd format.",
+      "default": ""
+    },
+    "LambdaAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Lambda created by Automation to perform the actions on your behalf. If not specified a transient role will be created to execute the Lambda function.",
+      "default": ""
+    },
+    "AutomationAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf. ",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "createDocumentStack",
+      "action": "aws:createStack",
+      "inputs": {
+        "Capabilities": [
+          "CAPABILITY_IAM"
+        ],
+        "StackName": "CreateJiraIssueLambdaStack{{automation:EXECUTION_ID}}",
+        "Parameters": [
+          {
+            "ParameterKey": "LambdaRoleArn",
+            "ParameterValue": "{{LambdaAssumeRole}}"
+          },
+          {
+            "ParameterKey": "LambdaName",
+            "ParameterValue": "CreateJiraIssueLambda-{{automation:EXECUTION_ID}}"
+          },
+          {
+            "ParameterKey": "SSMParameterName",
+            "ParameterValue": "{{SSMParameterName}}"
+          }
+        ],
+        "TemplateBody": "AWSTemplateFormatVersion: '2010-09-09'\nConditions:\n  LambdaAssumeRoleNotSpecified:\n    Fn::Or:\n    - Fn::Equals:\n      - {Ref: LambdaRoleArn}\n      - ''\n    - Fn::Equals:\n      - {Ref: LambdaRoleArn}\n      - undefined\nParameters:\n  LambdaName: {Description: 'The lambda function name\n\n      ', Type: String}\n  LambdaRoleArn: {Default: '', Description: 'The ARN of the role that allows Lambda\n      created by Automation to perform the action on your behalf\n\n      ', Type: String}\n  SSMParameterName: {Description: 'The name of the SSM Parameter with the Jira password/token\n\n      ', Type: String}\nResources:\n  CreateJiraIssue:\n    Properties:\n      Code: {ZipFile: \"#\\n# Copyright 2018 Amazon.com, Inc. or its affiliates. All\\\n          \\ Rights Reserved.\\n#\\n# Permission is hereby granted, free of charge, to\\\n          \\ any person obtaining a copy of this\\n# software and associated documentation\\\n          \\ files (the \\\"Software\\\"), to deal in the Software\\n# without restriction,\\\n          \\ including without limitation the rights to use, copy, modify,\\n# merge,\\\n          \\ publish, distribute, sublicense, and/or sell copies of the Software, and\\\n          \\ to\\n# permit persons to whom the Software is furnished to do so.\\n#\\n\\\n          # THE SOFTWARE IS PROVIDED \\\"AS IS\\\", WITHOUT WARRANTY OF ANY KIND, EXPRESS\\\n          \\ OR IMPLIED,\\n# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\\\n          \\ FITNESS FOR A\\n# PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL\\\n          \\ THE AUTHORS OR COPYRIGHT\\n# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR\\\n          \\ OTHER LIABILITY, WHETHER IN AN ACTION\\n# OF CONTRACT, TORT OR OTHERWISE,\\\n          \\ ARISING FROM, OUT OF OR IN CONNECTION WITH THE\\n# SOFTWARE OR THE USE\\\n          \\ OR OTHER DEALINGS IN THE SOFTWARE.\\n#\\nimport boto3\\nimport json\\nfrom\\\n          \\ botocore.vendored import requests\\n\\ndef add_priority(issue, priority):\\n\\\n          \\tfields = issue[\\\"fields\\\"]\\n\\tfields[\\\"priority\\\"] = {\\\"name\\\": priority}\\n\\\n          \\ndef add_assignee(issue, assignee):\\n\\tfields = issue[\\\"fields\\\"]\\n\\tfields[\\\"\\\n          assignee\\\"] = {\\\"name\\\": assignee}\\n\\ndef add_due_date(issue, due_date):\\n\\\n          \\tfields = issue[\\\"fields\\\"]\\n\\tfields[\\\"duedate\\\"] = due_date\\n\\ndef handler(event,\\\n          \\ context):\\n\\n\\tclient = boto3.client(\\\"ssm\\\")\\n\\n\\tssm_parameter_name\\\n          \\ = event[\\\"SSMParameterName\\\"].strip()\\n\\n\\tsecret = client.get_parameter(Name=ssm_parameter_name,\\\n          \\ WithDecryption=True)['Parameter']['Value']\\n\\n\\tusername = event[\\\"JiraUsername\\\"\\\n          ].strip()\\n\\turl = event[\\\"JiraURL\\\"].strip()\\n\\n\\tissue = {\\n\\t\\t\\\"fields\\\"\\\n          : {\\n\\t\\t\\t\\\"summary\\\": event[\\\"IssueSummary\\\"].strip(),\\n\\t\\t\\t\\\"project\\\"\\\n          : {\\n\\t\\t\\t\\t\\\"key\\\": event[\\\"ProjectKey\\\"].strip()\\n\\t\\t\\t},\\n\\t\\t\\t\\\"\\\n          description\\\": event[\\\"IssueDescription\\\"].strip(),\\n\\t\\t\\t\\\"issuetype\\\"\\\n          : {\\n\\t\\t\\t\\t\\\"name\\\": event[\\\"IssueTypeName\\\"].strip()\\n\\t\\t\\t}\\n\\t\\t}\\n\\\n          \\t}\\n\\n\\tpriority = event[\\\"PriorityName\\\"].strip()\\n\\tif priority:\\n\\t\\t\\\n          add_priority(issue, priority)\\n\\n\\tassignee = event[\\\"AssigneeName\\\"].strip()\\n\\\n          \\tif assignee:\\n\\t\\tadd_assignee(issue, assignee)\\n\\n\\tdue_date = event[\\\"\\\n          DueDate\\\"].strip()\\n\\tif due_date:\\n\\t\\tadd_due_date(issue, due_date)\\n\\n\\\n          \\tdata = json.dumps(issue)\\n\\n\\theaders = {'Content-Type':'application/json'}\\n\\\n          \\n\\tresponse = requests.post('{0}/rest/api/2/issue/'.format(url),\\n\\t\\t\\t\\\n          \\t\\t\\t\\t headers=headers,\\n\\t\\t\\t\\t\\t\\t\\t data=data,\\n\\t\\t\\t\\t\\t\\t\\t auth=(username,\\\n          \\ secret))\\n\\n\\tissue_key = (response.json()[\\\"key\\\"])\\n\\treturn {\\\"IssueKey\\\"\\\n          : issue_key}\\n\\n\\n\\n\\n\"}\n      FunctionName: {Ref: LambdaName}\n      Handler: index.handler\n      MemorySize: 128\n      Role:\n        Fn::If:\n        - LambdaAssumeRoleNotSpecified\n        - Fn::GetAtt: [LambdaRole, Arn]\n        - {Ref: LambdaRoleArn}\n      Runtime: python2.7\n      Timeout: 300\n    Type: AWS::Lambda::Function\n  LambdaRole:\n    Condition: LambdaAssumeRoleNotSpecified\n    Properties:\n      AssumeRolePolicyDocument:\n        Statement:\n        - Action: ['sts:AssumeRole']\n          Effect: Allow\n          Principal:\n            Service: [lambda.amazonaws.com]\n        Version: '2012-10-17'\n      Path: /\n      Policies:\n      - PolicyDocument:\n          Statement:\n          - Action: ['ssm:GetParameter']\n            Effect: Allow\n            Resource:\n              Fn::Join:\n              - ''\n              - - Fn::Join:\n                  - ':'\n                  - - arn\n                    - {Ref: 'AWS::Partition'}\n                    - ssm\n                    - {Ref: 'AWS::Region'}\n                    - {Ref: 'AWS::AccountId'}\n                    - parameter/\n                - {Ref: SSMParameterName}\n          Version: '2012-10-17'\n        PolicyName: CreateJiraIssueLambdaPolicy\n    Type: AWS::IAM::Role\n"
+      }
+    },
+    {
+      "name": "createJiraIssue",
+      "action": "aws:invokeLambdaFunction",
+      "inputs": {
+        "FunctionName": "CreateJiraIssueLambda-{{automation:EXECUTION_ID}}",
+        "Payload": "{\"JiraUsername\": \"{{JiraUsername}}\", \"SSMParameterName\": \"{{SSMParameterName}}\", \"JiraURL\": \"{{JiraURL}}\", \"ProjectKey\": \"{{ProjectKey}}\", \"IssueSummary\": \"{{IssueSummary}}\", \"IssueDescription\": \"{{IssueDescription}}\", \"IssueTypeName\": \"{{IssueTypeName}}\", \"PriorityName\": \"{{PriorityName}}\", \"AssigneeName\": \"{{AssigneeName}}\", \"DueDate\": \"{{DueDate}}\"}"
+      }
+    },
+    {
+      "name": "deleteCloudFormationTemplate",
+      "action": "aws:deleteStack",
+      "inputs": {
+        "StackName": "CreateJiraIssueLambdaStack{{automation:EXECUTION_ID}}"
+      }
+    }
+  ],
+  "outputs": [
+    "createJiraIssue.Payload"
+  ]
+}

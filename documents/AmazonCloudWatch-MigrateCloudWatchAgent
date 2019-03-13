@@ -1,0 +1,94 @@
+{
+  "schemaVersion": "2.2",
+  "description": "Assists in migrating from the SSM CloudWatch Plugin to the Amazon CloudWatch Agent",
+  "mainSteps": [
+    {
+      "name": "checkSsmAgentVersion",
+      "action": "aws:runPowerShellScript",
+      "precondition": {
+        "StringEquals": [
+          "platformType",
+          "Windows"
+        ]
+      },
+      "inputs": {
+        "runCommand": [
+          "$ssmAgentVersion = (Get-ItemProperty HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\* | select DisplayName, DisplayVersion | Where DisplayName -eq 'Amazon SSM Agent').'DisplayVersion'",
+          "if ([System.Version]$ssmAgentVersion -ge [System.Version]'2.2.93.0') {",
+          "echo 'You have a valid SSM agent version for migration'",
+          "} else {",
+          "Throw 'The current SSM agent version ' + $ssmAgentVersion + ' does not support the new CloudWatch agent. Please consider updating your SSM agent to version 2.2.93.0 or newer.'",
+          "}"
+        ]
+      }
+    },
+    {
+      "name": "disableOldCloudWatchAgent",
+      "action": "aws:cloudWatch",
+      "precondition": {
+        "StringEquals": [
+          "platformType",
+          "Windows"
+        ]
+      },
+      "settings": {
+        "startType": "Disabled"
+      }
+    },
+    {
+      "name": "installNewCloudWatchAgent",
+      "action": "aws:runDocument",
+      "precondition": {
+        "StringEquals": [
+          "platformType",
+          "Windows"
+        ]
+      },
+      "inputs": {
+        "documentType": "SSMDocument",
+        "documentPath": "AWS-ConfigureAWSPackage",
+        "documentParameters": "action: Install\nname: AmazonCloudWatchAgent\nversion: latest"
+      }
+    },
+    {
+      "name": "migrateOldConfiguration",
+      "action": "aws:runPowerShellScript",
+      "precondition": {
+        "StringEquals": [
+          "platformType",
+          "Windows"
+        ]
+      },
+      "inputs": {
+        "runCommand": [
+          "Set-Location -Path \"${Env:ProgramFiles}\\Amazon\\AmazonCloudWatchAgent\" -PassThru",
+          "if (Test-Path \"${Env:ProgramFiles}\\Amazon\\SSM\\Plugins\\awsCloudWatch\\AWS.EC2.Windows.CloudWatch.json\") {",
+          "$stdOut = .\\amazon-cloudwatch-agent-config-wizard.exe --isNonInteractiveWindowsMigration 2>($tmpFile = [System.IO.Path]::GetTempFileName())",
+          "$stdErr = Get-Content $tmpFile; Remove-Item $tmpFile",
+          "if ( $LastExitCode -ne 0 ) {",
+          "Throw 'Failed to migrate the old config. Please check that you have a valid SSM agent version and a valid old agent Config file. \\n stdout = ' + $stdOut + ', stderr = ' + $stdErr",
+          "}",
+          "} else {",
+          "Throw 'No SSM CloudWatch Plugin configuration file found. Please, follow the Amazon CloudWatch Agent configuration instructions instead.'",
+          "}"
+        ]
+      }
+    },
+    {
+      "name": "reconfigureNewAgent",
+      "action": "aws:runPowerShellScript",
+      "precondition": {
+        "StringEquals": [
+          "platformType",
+          "Windows"
+        ]
+      },
+      "inputs": {
+        "runCommand": [
+          "Set-Location -Path \"${Env:ProgramFiles}\\Amazon\\AmazonCloudWatchAgent\" -PassThru",
+          ".\\amazon-cloudwatch-agent-ctl.ps1 -a fetch-config -m ec2 -c file:config.json -s"
+        ]
+      }
+    }
+  ]
+}

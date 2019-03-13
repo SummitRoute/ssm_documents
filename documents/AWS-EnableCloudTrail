@@ -1,0 +1,32 @@
+{
+  "description": "Enable CloudTrail",
+  "schemaVersion": "0.3",
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "parameters": {
+    "TrailName": {
+      "type": "String",
+      "description": "(Required) The name of the new trail."
+    },
+    "S3BucketName": {
+      "type": "String",
+      "description": "(Required) Name of the Amazon S3 bucket designated for publishing log files."
+    },
+    "AutomationAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf.",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "EnableCloudTrail",
+      "action": "aws:executeAwsApi",
+      "inputs": {
+        "Service": "cloudtrail",
+        "Api": "CreateTrail",
+        "Name": "{{TrailName}}",
+        "S3BucketName": "{{S3BucketName}}"
+      }
+    }
+  ]
+}

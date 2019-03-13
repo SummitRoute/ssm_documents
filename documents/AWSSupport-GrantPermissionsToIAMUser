@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "0.3",
+  "description": "This document grants the specified permissions to an IAM group (new or existing), and adds the existing IAM user to it. Policies you can choose from: Billing (https://console.aws.amazon.com/iam/home?#/policies/arn:aws:iam::aws:policy/job-function/Billing$serviceLevelSummary), Support (https://console.aws.amazon.com/iam/home?#/policies/arn:aws:iam::aws:policy/AWSSupportAccess$serviceLevelSummary). To enable billing access for IAM, remember to also activate *IAM user and federated user access to the Billing and Cost Management pages*: http://docs.aws.amazon.com/console/iam/billing-enable. WARNING: If you provide an existing IAM group, all current IAM users in the group receive the new permissions.",
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "parameters": {
+    "IAMGroupName": {
+      "type": "String",
+      "description": "(Required) Can be a new or existing group. Must comply with https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-limits.html#reference_iam-limits-names.",
+      "default": "ExampleSupportAndBillingGroup",
+      "allowedPattern": "^[a-zA-Z0-9+=,.@_-]{1,128}$"
+    },
+    "IAMUserName": {
+      "type": "String",
+      "description": "(Required) Must be an existing user.",
+      "default": "ExampleUser",
+      "allowedPattern": "^[a-zA-Z0-9+=,.@_-]{1,64}"
+    },
+    "Permissions": {
+      "type": "String",
+      "description": "(Required) Choose one of: SupportFullAccess - Grants full access to the Support center | BillingFullAccess - Grants full access to the Billing dashboard | SupportAndBillingFullAccess - Grants full access to both Support center and the Billing dashboard. More info on policies under Document details.",
+      "default": "SupportAndBillingFullAccess",
+      "allowedValues": [
+        "SupportFullAccess",
+        "BillingFullAccess",
+        "SupportAndBillingFullAccess"
+      ]
+    },
+    "LambdaAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The ARN of the role assumed by lambda.",
+      "default": ""
+    },
+    "AutomationAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf. If no role is specified, AWS Systems Manager Automation will use the permissions of the user that executes this document.",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "createDocumentStack",
+      "action": "aws:createStack",
+      "inputs": {
+        "StackName": "AWSSupport-GrantPermissionsToIAMUser-{{ automation:EXECUTION_ID }}",
+        "OnFailure": "DELETE",
+        "TemplateURL": "https://awssupport-ssm.{{ global:REGION }}.s3.amazonaws.com/AWSSupport-GrantPermissionsToIAMUser/CloudFormationTemplates/AWSSupport-GrantPermissionsToIAMUser_va9fa140c79359997d1506c5ca8eb7b84543c8502.template",
+        "Capabilities": [
+          "CAPABILITY_IAM"
+        ],
+        "Parameters": [
+          {
+            "ParameterKey": "LambdaName",
+            "ParameterValue": "AWSSupport-ConfigureIAM-{{ automation:EXECUTION_ID }}"
+          },
+          {
+            "ParameterKey": "LambdaRoleArn",
+            "ParameterValue": "{{ LambdaAssumeRole }}"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "AWSSupport-AutomationExecution",
+            "Value": "{{ automation:EXECUTION_ID }}"
+          }
+        ]
+      }
+    },
+    {
+      "name": "configureIAM",
+      "action": "aws:invokeLambdaFunction",
+      "onFailure": "step:deleteDocumentStack",
+      "inputs": {
+        "FunctionName": "AWSSupport-ConfigureIAM-{{ automation:EXECUTION_ID }}",
+        "Payload": "{\"ResourceProperties\": {\"IAMGroupName\": \"{{ IAMGroupName }}\", \"Permissions\": \"{{ Permissions }}\", \"IAMUserName\": \"{{ IAMUserName }}\", \"Region\": \"{{ global:REGION }}\", \"AccountId\": \"{{ global:ACCOUNT_ID }}\", \"ExecutionId\": \"{{ automation:EXECUTION_ID }}\" }}"
+      }
+    },
+    {
+      "name": "deleteDocumentStack",
+      "action": "aws:deleteStack",
+      "inputs": {
+        "StackName": "AWSSupport-GrantPermissionsToIAMUser-{{ automation:EXECUTION_ID }}"
+      }
+    }
+  ],
+  "outputs": [
+    "configureIAM.Payload"
+  ]
+}

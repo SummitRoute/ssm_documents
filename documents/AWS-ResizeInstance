@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "0.3",
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "description": "Resize Instance",
+  "parameters": {
+    "InstanceId": {
+      "type": "String",
+      "description": "(Required) The ID of the instance."
+    },
+    "InstanceType": {
+      "type": "String",
+      "description": "(Required) The instance type."
+    },
+    "LambdaAssumeRole": {
+      "default": "",
+      "type": "String",
+      "description": "(Optional) The ARN of the role assumed by lambda"
+    },
+    "AutomationAssumeRole": {
+      "default": "",
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf. "
+    }
+  },
+  "mainSteps": [
+    {
+      "action": "aws:createStack",
+      "inputs": {
+        "StackName": "ResizeInstanceStack{{automation:EXECUTION_ID}}",
+        "TemplateBody": "AWSTemplateFormatVersion: '2010-09-09'\nConditions:\n  LambdaAssumeRoleNotSpecified:\n    Fn::Or:\n    - Fn::Equals:\n      - {Ref: LambdaRoleArn}\n      - ''\n    - Fn::Equals:\n      - {Ref: LambdaRoleArn}\n      - undefined\nDescription: Automation Stack for Resize Instance\nParameters:\n  LambdaName: {Description: 'The lambda function name\n\n      ', Type: String}\n  LambdaRoleArn: {Default: '', Description: 'The ARN of the role that allows Lambda\n      created by Automation to perform the action on your behalf\n\n      ', Type: String}\nResources:\n  LambdaRole:\n    Condition: LambdaAssumeRoleNotSpecified\n    Properties:\n      AssumeRolePolicyDocument:\n        Statement:\n        - Action: ['sts:AssumeRole']\n          Effect: Allow\n          Principal:\n            Service: [lambda.amazonaws.com]\n        Version: '2012-10-17'\n      Path: /\n      Policies:\n      - PolicyDocument:\n          Statement:\n            Action: ['ec2:ModifyInstanceAttribute']\n            Effect: Allow\n            Resource: '*'\n          Version: '2012-10-17'\n        PolicyName: ResizeInstanceLambdaPolicy\n    Type: AWS::IAM::Role\n  ResizeInstanceLambda:\n    Properties:\n      Code: {ZipFile: \"import boto3\\n\\n\\ndef handler(event, context):\\n\\tinstance_id\\\n          \\ = event[\\\"InstanceId\\\"]\\n\\tnew_instance_type = event[\\\"InstanceType\\\"\\\n          ]\\n\\n\\tec2 = boto3.resource('ec2')\\n\\tinstance = ec2.Instance(instance_id)\\n\\\n          \\n\\t# Migrated to a step\\n\\t# state_code = instance.state['Code']\\n\\t# if\\\n          \\ state_code == 16 or state_code == 64:\\n\\t#\\t instance.stop()\\n\\t#\\t print\\\n          \\ \\\"Stopping\\\"\\n\\t#\\t instance.wait_until_stopped()\\n\\t#\\t print \\\"Stopped\\\"\\\n          \\n\\n\\tprint \\\"Modifying instance type\\\"\\n\\tinstance.modify_attribute(InstanceType={\\n\\\n          \\t\\t'Value': new_instance_type\\n\\t})\\n\\n\\t# Migrated to a step\\n\\t# instance.start()\\n\\\n          \\t# print \\\"Starting\\\"\\n\\t# instance.wait_until_running()\\n\\t# print \\\"\\\n          Now running\\\"\\n\"}\n      FunctionName: {Ref: LambdaName}\n      Handler: index.handler\n      MemorySize: 128\n      Role:\n        Fn::If:\n        - LambdaAssumeRoleNotSpecified\n        - Fn::GetAtt: [LambdaRole, Arn]\n        - {Ref: LambdaRoleArn}\n      Runtime: python2.7\n      Timeout: 60\n    Type: AWS::Lambda::Function\n",
+        "Parameters": [
+          {
+            "ParameterValue": "{{LambdaAssumeRole}}",
+            "ParameterKey": "LambdaRoleArn"
+          },
+          {
+            "ParameterValue": "ResizeInstanceLambda-{{automation:EXECUTION_ID}}",
+            "ParameterKey": "LambdaName"
+          }
+        ],
+        "Capabilities": [
+          "CAPABILITY_IAM"
+        ]
+      },
+      "name": "createDocumentStack"
+    },
+    {
+      "action": "aws:changeInstanceState",
+      "inputs": {
+        "DesiredState": "stopped",
+        "InstanceIds": [
+          "{{InstanceId}}"
+        ]
+      },
+      "name": "stopInstances"
+    },
+    {
+      "action": "aws:invokeLambdaFunction",
+      "inputs": {
+        "FunctionName": "ResizeInstanceLambda-{{automation:EXECUTION_ID}}",
+        "Payload": "{\"InstanceId\": \"{{InstanceId}}\", \"InstanceType\": \"{{InstanceType}}\"}"
+      },
+      "name": "resizeInstance"
+    },
+    {
+      "action": "aws:changeInstanceState",
+      "inputs": {
+        "DesiredState": "running",
+        "InstanceIds": [
+          "{{InstanceId}}"
+        ]
+      },
+      "name": "startInstances"
+    },
+    {
+      "action": "aws:deleteStack",
+      "inputs": {
+        "StackName": "ResizeInstanceStack{{automation:EXECUTION_ID}}"
+      },
+      "name": "deleteCloudFormationTemplate"
+    }
+  ]
+}

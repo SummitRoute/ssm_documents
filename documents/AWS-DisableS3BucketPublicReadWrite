@@ -1,0 +1,29 @@
+{
+  "description": "Disable S3-Bucket's public WriteRead access via private ACL",
+  "schemaVersion": "0.3",
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "parameters": {
+    "S3BucketName": {
+      "type": "String",
+      "description": "(Required) S3 Bucket subject to access restriction"
+    },
+    "AutomationAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf.",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "DisableS3BucketPublicReadWrite",
+      "action": "aws:executeAwsApi",
+      "inputs": {
+        "Service": "s3",
+        "Api": "PutBucketAcl",
+        "Bucket": "{{S3BucketName}}",
+        "ACL": "private"
+      },
+      "isEnd": true
+    }
+  ]
+}

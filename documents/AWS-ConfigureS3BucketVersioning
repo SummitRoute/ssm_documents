@@ -1,0 +1,42 @@
+{
+  "description": "Configures the S3 Bucket's versioning",
+  "schemaVersion": "0.3",
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "parameters": {
+    "BucketName": {
+      "type": "String",
+      "description": "(Required) The name of the S3 Bucket whose encryption configuration will be managed."
+    },
+    "VersioningState": {
+      "type": "String",
+      "description": "(Optional) Applied to the VersioningConfiguration.Status. When set to 'Enabled', this process enables versioning for the objects in the bucket, all objects added to the bucket receive a unique version ID. When set to 'Suspended', this process dsables versioning for the objects in the bucket, all objects added to the bucket receive the version ID null.\n",
+      "default": "Enabled",
+      "allowedValues": [
+        "Enabled",
+        "Suspended"
+      ]
+    },
+    "AutomationAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf.",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "ConfigureVersioning",
+      "action": "aws:executeAwsApi",
+      "maxAttempts": 1,
+      "inputs": {
+        "Service": "s3",
+        "Api": "PutBucketVersioning",
+        "Bucket": "{{BucketName}}",
+        "VersioningConfiguration": {
+          "MFADelete": "Disabled",
+          "Status": "{{VersioningState}}"
+        }
+      },
+      "isEnd": true
+    }
+  ]
+}

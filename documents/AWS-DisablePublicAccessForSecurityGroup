@@ -1,0 +1,182 @@
+{
+  "description": "Disable SSH and RDP ports opened to IP address specified, or to all addresses if no address is specified.",
+  "schemaVersion": "0.3",
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "parameters": {
+    "GroupId": {
+      "type": "String",
+      "description": "(Required) Security Group ID",
+      "allowedPattern": "^([s][g]\\-)([0-9a-f]){1,}$"
+    },
+    "IpAddressToBlock": {
+      "type": "String",
+      "description": "(Optional) Additional Ipv4 or Ipv6 address to block access from (ex:1.2.3.4/32)",
+      "allowedPattern": "(^$)|^((25[0-5]|(2[0-4]\\d|[0-1]?\\d?\\d)(\\.(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)){3})|(^((?:[0-9A-Fa-f]{1,4}(?::[0-9A-Fa-f]{1,4})*)?)::((?:[0-9A-Fa-f]{1,4}(?::[0-9A-Fa-f]{1,4})*)?))|(^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}))\\/(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)$",
+      "default": ""
+    },
+    "AutomationAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf.",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "CustomIpCheck",
+      "action": "aws:branch",
+      "inputs": {
+        "Choices": [
+          {
+            "NextStep": "DisableFromCustomIpV6",
+            "And": [
+              {
+                "Not": {
+                  "Variable": "{{IpAddressToBlock}}",
+                  "StringEquals": ""
+                }
+              },
+              {
+                "Variable": "{{ IpAddressToBlock }}",
+                "Contains": ":"
+              }
+            ]
+          },
+          {
+            "NextStep": "DisableFromCustomIpV4",
+            "And": [
+              {
+                "Not": {
+                  "Variable": "{{IpAddressToBlock}}",
+                  "StringEquals": ""
+                }
+              },
+              {
+                "Not": {
+                  "Variable": "{{ IpAddressToBlock }}",
+                  "Contains": ":"
+                }
+              }
+            ]
+          }
+        ],
+        "Default": "DisableFromAllIp"
+      }
+    },
+    {
+      "name": "DisableFromAllIp",
+      "action": "aws:executeAwsApi",
+      "inputs": {
+        "Service": "ec2",
+        "Api": "RevokeSecurityGroupIngress",
+        "GroupId": "{{GroupId}}",
+        "IpPermissions": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 22,
+            "ToPort": 22,
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
+              }
+            ]
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 22,
+            "ToPort": 22,
+            "Ipv6Ranges": [
+              {
+                "CidrIpv6": "::/0"
+              }
+            ]
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 3389,
+            "ToPort": 3389,
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
+              }
+            ]
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 3389,
+            "ToPort": 3389,
+            "Ipv6Ranges": [
+              {
+                "CidrIpv6": "::/0"
+              }
+            ]
+          }
+        ]
+      },
+      "isEnd": true
+    },
+    {
+      "name": "DisableFromCustomIpV4",
+      "action": "aws:executeAwsApi",
+      "inputs": {
+        "Service": "ec2",
+        "Api": "RevokeSecurityGroupIngress",
+        "GroupId": "{{GroupId}}",
+        "IpPermissions": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 22,
+            "ToPort": 22,
+            "IpRanges": [
+              {
+                "CidrIp": "{{ IpAddressToBlock }}"
+              }
+            ]
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 3389,
+            "ToPort": 3389,
+            "IpRanges": [
+              {
+                "CidrIp": "{{ IpAddressToBlock }}"
+              }
+            ]
+          }
+        ]
+      },
+      "isEnd": true
+    },
+    {
+      "name": "DisableFromCustomIpV6",
+      "action": "aws:executeAwsApi",
+      "inputs": {
+        "Service": "ec2",
+        "Api": "RevokeSecurityGroupIngress",
+        "GroupId": "{{GroupId}}",
+        "IpPermissions": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 22,
+            "ToPort": 22,
+            "Ipv6Ranges": [
+              {
+                "CidrIpv6": "{{ IpAddressToBlock }}"
+              }
+            ]
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 3389,
+            "ToPort": 3389,
+            "Ipv6Ranges": [
+              {
+                "CidrIpv6": "{{ IpAddressToBlock }}"
+              }
+            ]
+          }
+        ]
+      },
+      "isEnd": true
+    }
+  ]
+}

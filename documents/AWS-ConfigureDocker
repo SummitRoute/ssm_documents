@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "2.0",
+  "description": "Configure an instance to work with containers and Docker",
+  "parameters": {
+    "action": {
+      "type": "String",
+      "description": "The type of action to perform.",
+      "allowedValues": [
+        "Install",
+        "Uninstall"
+      ]
+    }
+  },
+  "mainSteps": [
+    {
+      "action": "aws:configureDocker",
+      "name": "ConfigureDocker",
+      "inputs": {
+        "action": "{{ action }}"
+      }
+    }
+  ]
+}

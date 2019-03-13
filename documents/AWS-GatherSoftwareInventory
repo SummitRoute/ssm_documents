@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "2.0",
+  "description": "Software Inventory Policy Document.",
+  "parameters": {
+    "applications": {
+      "type": "String",
+      "default": "Enabled",
+      "description": "(Optional) Collect data for installed applications.",
+      "allowedValues": [
+        "Enabled",
+        "Disabled"
+      ]
+    },
+    "awsComponents": {
+      "type": "String",
+      "default": "Enabled",
+      "description": "(Optional) Collect data for AWS Components like amazon-ssm-agent.",
+      "allowedValues": [
+        "Enabled",
+        "Disabled"
+      ]
+    },
+    "files": {
+      "type": "String",
+      "default": "",
+      "description": "<p>(Optional, requires SSMAgent version 2.2.64.0 and above)<br/><br/>Linux example:<br/><em>[{\"Path\":\"/usr/bin\", \"Pattern\":[\"aws*\", \"*ssm*\"],\"Recursive\":false},{\"Path\":\"/var/log\", \"Pattern\":[\"amazon*.*\"], \"Recursive\":true, \"DirScanLimit\":1000}]<br/></em><br/>Windows example:<br/><em>[{\"Path\":\"%PROGRAMFILES%\", \"Pattern\":[\"*.exe\"],\"Recursive\":true}]</em><br/><br/>Learn More: http://docs.aws.amazon.com/systems-manager/latest/userguide/sysman-inventory-about.html#sysman-inventory-file-and-registry  </p>",
+      "displayType": "textarea"
+    },
+    "networkConfig": {
+      "type": "String",
+      "default": "Enabled",
+      "description": "(Optional) Collect data for Network configurations.",
+      "allowedValues": [
+        "Enabled",
+        "Disabled"
+      ]
+    },
+    "windowsUpdates": {
+      "type": "String",
+      "default": "Enabled",
+      "description": "(Optional, Windows OS only) Collect data for all Windows Updates.",
+      "allowedValues": [
+        "Enabled",
+        "Disabled"
+      ]
+    },
+    "instanceDetailedInformation": {
+      "type": "String",
+      "default": "Enabled",
+      "description": "(Optional) Collect additional information about the instance, including the CPU model, speed, and the number of cores, to name a few.",
+      "allowedValues": [
+        "Enabled",
+        "Disabled"
+      ]
+    },
+    "services": {
+      "type": "String",
+      "default": "Enabled",
+      "description": "(Optional, Windows OS only, requires SSMAgent version 2.2.64.0 and above) Collect data for service configurations.",
+      "allowedValues": [
+        "Enabled",
+        "Disabled"
+      ]
+    },
+    "windowsRegistry": {
+      "type": "String",
+      "default": "",
+      "description": "<p>(Optional, Windows OS only, requires SSMAgent version 2.2.64.0 and above)<br/><br/>Example:<br />[{\"Path\":\"HKEY_CURRENT_CONFIG\\System\",\"Recursive\":true},{\"Path\":\"HKEY_LOCAL_MACHINE\\SOFTWARE\\Amazon\\MachineImage\", \"ValueNames\":[\"AMIName\"]}]<br/><br/>Learn More: http://docs.aws.amazon.com/systems-manager/latest/userguide/sysman-inventory-about.html#sysman-inventory-file-and-registry </p>",
+      "displayType": "textarea"
+    },
+    "windowsRoles": {
+      "type": "String",
+      "default": "Enabled",
+      "description": "(Optional, Windows OS only, requires SSMAgent version 2.2.64.0 and above) Collect data for Microsoft Windows role configurations.",
+      "allowedValues": [
+        "Enabled",
+        "Disabled"
+      ]
+    },
+    "customInventory": {
+      "type": "String",
+      "default": "Enabled",
+      "description": "(Optional) Collect data for custom inventory.",
+      "allowedValues": [
+        "Enabled",
+        "Disabled"
+      ]
+    }
+  },
+  "mainSteps": [
+    {
+      "action": "aws:softwareInventory",
+      "name": "collectSoftwareInventoryItems",
+      "inputs": {
+        "applications": "{{ applications }}",
+        "awsComponents": "{{ awsComponents }}",
+        "networkConfig": "{{ networkConfig }}",
+        "files": "{{ files }}",
+        "services": "{{ services }}",
+        "windowsRoles": "{{ windowsRoles }}",
+        "windowsRegistry": "{{ windowsRegistry}}",
+        "windowsUpdates": "{{ windowsUpdates }}",
+        "instanceDetailedInformation": "{{ instanceDetailedInformation }}",
+        "customInventory": "{{ customInventory }}"
+      }
+    }
+  ]
+}
