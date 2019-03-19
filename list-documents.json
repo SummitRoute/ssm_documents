@@ -1262,7 +1262,7 @@
             "PlatformTypes": [
                 "Windows"
             ], 
-            "DocumentVersion": "3", 
+            "DocumentVersion": "4", 
             "DocumentType": "Command", 
             "Owner": "Amazon", 
             "SchemaVersion": "2.2", 
@@ -1274,7 +1274,7 @@
             "PlatformTypes": [
                 "Windows"
             ], 
-            "DocumentVersion": "3", 
+            "DocumentVersion": "4", 
             "DocumentType": "Command", 
             "Owner": "Amazon", 
             "SchemaVersion": "2.2", 
