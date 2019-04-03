@@ -95,7 +95,7 @@
         ],
         "Parameters": {
           "commands": [
-            "set -e",
+            "set -eo pipefail",
             "[ -x \"$(which wget)\" ] && get_contents='wget $1 -O -'",
             "[ -x \"$(which curl)\" ] && get_contents='curl -s -f $1'",
             "if [[ {{global:REGION}} == 'us-gov-'* ]]",
