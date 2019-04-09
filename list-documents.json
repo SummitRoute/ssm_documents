@@ -1293,6 +1293,19 @@
             "DocumentFormat": "JSON"
         }, 
         {
+            "Name": "AWSEC2-SQLServerDBRestore", 
+            "Tags": [], 
+            "PlatformTypes": [
+                "Windows", 
+                "Linux"
+            ], 
+            "DocumentVersion": "1", 
+            "DocumentType": "Automation", 
+            "Owner": "Amazon", 
+            "SchemaVersion": "0.3", 
+            "DocumentFormat": "JSON"
+        }, 
+        {
             "Name": "AmazonCloudWatch-ManageAgent", 
             "Tags": [], 
             "PlatformTypes": [

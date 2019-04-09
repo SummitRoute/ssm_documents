@@ -1,0 +1,473 @@
+{
+  "schemaVersion": "0.3",
+  "description": "The AWSEC2-SQLServerDBRestore document restores Microsoft SQL Server database backups stored in Amazon S3 to SQL Server 2017 running on an Amazon EC2 Linux instance. You may provide your own EC2 instance running SQL Server 2017 Linux. If an EC2 instance is not provided, the automation workflow launches and configures a new Ubuntu 16.04 EC2 instance with SQL Server 2017. The automation supports restoring full, differential, and transactional log backups. This automation accepts multiple database backup files and automatically restores the most recent valid backup of each database in the files provided. To automate both backup and restore of an on-premises SQL Server database to an EC2 instance running SQL Server 2017 Linux, see the AWS-signed PowerShell script (https://s3-us-west-1.amazonaws.com/awsec2-server-upgrade-prod/MigrateSQLServerToEC2Linux.ps1). Note: This automation resets the SQL Server 'SA' user password every time it runs. Once the automation is complete, you will need to set your own 'SA' user password again before you can connect to the SQL Server instance.",
+  "parameters": {
+    "S3Input": {
+      "type": "String",
+      "description": "(Required) S3 bucket name, comma-separated list of S3 object keys, or comma-separated list of pre-signed S3 URLs containing the SQL backup files to be restored. Accepted formats: 1) Single S3 file: 'sample-bucket/sample-key' 2) List of S3 files: 'sample-bucket/sample-key-1, sample-bucket/sample-key-2' 3) Presigned S3 URL: 'https://sample-bucket.s3.amazonaws.com/sample-object?...'"
+    },
+    "IsS3PresignedURL": {
+      "type": "String",
+      "description": "(Required) If S3Input is a pre-signed S3 URL, indicate 'yes'.",
+      "default": "no",
+      "allowedValues": [
+        "yes",
+        "no"
+      ]
+    },
+    "InstanceId": {
+      "type": "String",
+      "description": "(Optional) The instance running SQL Server 2017 on Linux. If no InstanceId is provided, the automation launches a new EC2 instance using the InstanceType and SQLServerEdition provided.",
+      "default": ""
+    },
+    "InstanceType": {
+      "type": "String",
+      "description": "(Optional) The instance type of the EC2 instance to be launched.",
+      "default": ""
+    },
+    "SQLServerEdition": {
+      "type": "String",
+      "description": "(Optional) The edition of SQL Server 2017 to be installed on the newly created EC2 instance.",
+      "default": "Standard",
+      "allowedValues": [
+        "Standard",
+        "Enterprise",
+        "Web",
+        "Express"
+      ]
+    },
+    "IamInstanceProfileName": {
+      "type": "String",
+      "description": "(Optional) The IAM instance profile to attach to the new EC2 instance. The IAM instance profile must have the AmazonEC2RoleForSSM managed policy attached.",
+      "default": ""
+    },
+    "KeyPair": {
+      "type": "String",
+      "description": "(Optional) Name of the EC2 key pair to be used to access the newly created EC2 instance. When restoring to a new EC2 instance, it is highly recommended that you provide a key pair, as the SQL Server 'sa' password will need to be reset before the databases can be accessed.",
+      "default": ""
+    },
+    "SubnetId": {
+      "type": "String",
+      "description": "(Optional) The subnet in which to launch the new EC2 instance. The subnet must have outbound connectivity to AWS services. If a value for SubnetId is not provided, the automation uses the default subnet.",
+      "default": ""
+    },
+    "DataDirectorySize": {
+      "type": "String",
+      "description": "(Optional) Desired volume size (GiB) of the SQL Server Data directory for the new EC2 instance.",
+      "default": "100"
+    },
+    "LogDirectorySize": {
+      "type": "String",
+      "description": "(Optional) Desired volume size (GiB) of the SQL Server Log directory for the new EC2 instance.",
+      "default": "100"
+    },
+    "TempDbDirectorySize": {
+      "type": "String",
+      "description": "(Optional) Desired volume size (GiB) of the SQL Server TempDB directory for the new EC2 instance.",
+      "default": "100"
+    },
+    "DatabaseNames": {
+      "type": "String",
+      "description": "(Optional) Comma-separated list of the names of the databases to be restored. If no names are provided, all databases present in the backup files will be restored.",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "doesInstanceNeedToBeCreated",
+      "action": "aws:branch",
+      "onFailure": "Abort",
+      "inputs": {
+        "Choices": [
+          {
+            "Variable": "{{ InstanceId }}",
+            "StartsWith": "i-",
+            "NextStep": "tagExistingInstance"
+          },
+          {
+            "Variable": "{{ InstanceId }}",
+            "StartsWith": "mi-",
+            "NextStep": "restoreToExistingManagedInstance"
+          }
+        ],
+        "Default": "getUbuntuAMI"
+      }
+    },
+    {
+      "name": "getUbuntuAMI",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "ec2",
+        "Api": "DescribeImages",
+        "Owners": [
+          "amazon"
+        ],
+        "Filters": [
+          {
+            "Name": "name",
+            "Values": [
+              "ubuntu-xenial-16.04-amd64-server-20180306-SQL_2017_{{ SQLServerEdition }}-2018.04.10"
+            ]
+          },
+          {
+            "Name": "state",
+            "Values": [
+              "available"
+            ]
+          }
+        ]
+      },
+      "outputs": [
+        {
+          "Name": "amiId",
+          "Selector": "$.Images[0].ImageId",
+          "Type": "String"
+        }
+      ],
+      "isCritical": "true",
+      "nextStep": "branchOnWhetherKeyPairExists"
+    },
+    {
+      "name": "branchOnWhetherKeyPairExists",
+      "action": "aws:branch",
+      "onFailure": "Abort",
+      "inputs": {
+        "Choices": [
+          {
+            "Not": {
+              "Variable": "{{ KeyPair }}",
+              "EqualsIgnoreCase": ""
+            },
+            "NextStep": "createNewInstanceWithKeyPair"
+          }
+        ],
+        "Default": "createNewInstanceWithoutKeyPair"
+      }
+    },
+    {
+      "name": "createNewInstanceWithKeyPair",
+      "action": "aws:runInstances",
+      "maxAttempts": 3,
+      "timeoutSeconds": 1200,
+      "onFailure": "Abort",
+      "inputs": {
+        "ImageId": "{{ getUbuntuAMI.amiId }}",
+        "InstanceType": "{{ InstanceType }}",
+        "MinInstanceCount": 1,
+        "MaxInstanceCount": 1,
+        "IamInstanceProfileName": "{{ IamInstanceProfileName }}",
+        "KeyName": "{{ KeyPair }}",
+        "SubnetId": "{{ SubnetId }}",
+        "TagSpecifications": [
+          {
+            "ResourceType": "instance",
+            "Tags": [
+              {
+                "Key": "AWSEC2-SQLREPLATFORM-INSTANCE-KEY",
+                "Value": "AWSEC2-{{automation:EXECUTION_ID}}"
+              }
+            ]
+          }
+        ],
+        "BlockDeviceMappings": [
+          {
+            "DeviceName": "/dev/xvdb",
+            "Ebs": {
+              "VolumeSize": "{{ DataDirectorySize }}"
+            }
+          },
+          {
+            "DeviceName": "/dev/xvdc",
+            "Ebs": {
+              "VolumeSize": "{{ LogDirectorySize }}"
+            }
+          },
+          {
+            "DeviceName": "/dev/xvdd",
+            "Ebs": {
+              "VolumeSize": "{{ TempDbDirectorySize }}"
+            }
+          },
+          {
+            "DeviceName": "/dev/xvde",
+            "Ebs": {
+              "VolumeSize": "{{ DataDirectorySize }}"
+            }
+          }
+        ],
+        "UserData": "IyEvYmluL3NoCm1rZGlyIC90bXAvc3NtCmNkIC90bXAvc3NtCndnZXQgaHR0cHM6Ly9zMy5hbWF6b25hd3MuY29tL2VjMi1kb3dubG9hZHMtd2luZG93cy9TU01BZ2VudC9sYXRlc3QvZGViaWFuX2FtZDY0L2FtYXpvbi1zc20tYWdlbnQuZGViCiMgc3VkbyBybSAvdmFyL2xpYi9kcGtnL2xvY2sKIyBzdWRvIGRwa2cgLS1jb25maWd1cmUgLWEKc3VkbyBkcGtnIC1pIGFtYXpvbi1zc20tYWdlbnQuZGViCnN1ZG8gc3lzdGVtY3RsIHN0YXR1cyBhbWF6b24tc3NtLWFnZW50"
+      },
+      "nextStep": "getInstance"
+    },
+    {
+      "name": "createNewInstanceWithoutKeyPair",
+      "action": "aws:runInstances",
+      "maxAttempts": 3,
+      "timeoutSeconds": 1200,
+      "onFailure": "Abort",
+      "inputs": {
+        "ImageId": "{{ getUbuntuAMI.amiId }}",
+        "InstanceType": "{{ InstanceType }}",
+        "MinInstanceCount": 1,
+        "MaxInstanceCount": 1,
+        "IamInstanceProfileName": "{{ IamInstanceProfileName }}",
+        "SubnetId": "{{ SubnetId }}",
+        "TagSpecifications": [
+          {
+            "ResourceType": "instance",
+            "Tags": [
+              {
+                "Key": "AWSEC2-SQLREPLATFORM-INSTANCE-KEY",
+                "Value": "AWSEC2-{{automation:EXECUTION_ID}}"
+              }
+            ]
+          }
+        ],
+        "BlockDeviceMappings": [
+          {
+            "DeviceName": "/dev/xvdb",
+            "Ebs": {
+              "VolumeSize": "{{ DataDirectorySize }}"
+            }
+          },
+          {
+            "DeviceName": "/dev/xvdc",
+            "Ebs": {
+              "VolumeSize": "{{ LogDirectorySize }}"
+            }
+          },
+          {
+            "DeviceName": "/dev/xvdd",
+            "Ebs": {
+              "VolumeSize": "{{ TempDbDirectorySize }}"
+            }
+          },
+          {
+            "DeviceName": "/dev/xvde",
+            "Ebs": {
+              "VolumeSize": "{{ DataDirectorySize }}"
+            }
+          }
+        ],
+        "UserData": "IyEvYmluL3NoCm1rZGlyIC90bXAvc3NtCmNkIC90bXAvc3NtCndnZXQgaHR0cHM6Ly9zMy5hbWF6b25hd3MuY29tL2VjMi1kb3dubG9hZHMtd2luZG93cy9TU01BZ2VudC9sYXRlc3QvZGViaWFuX2FtZDY0L2FtYXpvbi1zc20tYWdlbnQuZGViCiMgc3VkbyBybSAvdmFyL2xpYi9kcGtnL2xvY2sKIyBzdWRvIGRwa2cgLS1jb25maWd1cmUgLWEKc3VkbyBkcGtnIC1pIGFtYXpvbi1zc20tYWdlbnQuZGViCnN1ZG8gc3lzdGVtY3RsIHN0YXR1cyBhbWF6b24tc3NtLWFnZW50"
+      },
+      "nextStep": "getInstance"
+    },
+    {
+      "name": "tagExistingInstance",
+      "action": "aws:executeAwsApi",
+      "maxAttempts": 2,
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "ec2",
+        "Api": "CreateTags",
+        "Tags": [
+          {
+            "Key": "AWSEC2-SQLREPLATFORM-INSTANCE-KEY",
+            "Value": "AWSEC2-{{automation:EXECUTION_ID}}"
+          }
+        ],
+        "Resources": [
+          "{{InstanceId}}"
+        ]
+      },
+      "isCritical": "true",
+      "nextStep": "getInstance"
+    },
+    {
+      "name": "getInstance",
+      "action": "aws:executeAwsApi",
+      "maxAttempts": 2,
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "ec2",
+        "Api": "DescribeInstances",
+        "Filters": [
+          {
+            "Name": "tag:AWSEC2-SQLREPLATFORM-INSTANCE-KEY",
+            "Values": [
+              "AWSEC2-{{automation:EXECUTION_ID}}"
+            ]
+          }
+        ]
+      },
+      "outputs": [
+        {
+          "Name": "InstanceId",
+          "Selector": "$.Reservations[0].Instances[0].InstanceId",
+          "Type": "String"
+        }
+      ],
+      "isCritical": "true",
+      "nextStep": "waitForInstanceToBeReady"
+    },
+    {
+      "name": "waitForInstanceToBeReady",
+      "action": "aws:waitForAwsResourceProperty",
+      "onFailure": "step:rebootToMakeItReady",
+      "timeoutSeconds": 600,
+      "maxAttempts": 2,
+      "inputs": {
+        "Service": "ec2",
+        "Api": "DescribeInstanceStatus",
+        "InstanceIds": [
+          "{{ getInstance.InstanceId }}"
+        ],
+        "PropertySelector": "$.InstanceStatuses[0].InstanceStatus.Details[0].Status",
+        "DesiredValues": [
+          "passed"
+        ]
+      },
+      "isCritical": "false",
+      "nextStep": "assertSSMAgentOnInstance"
+    },
+    {
+      "name": "rebootToMakeItReady",
+      "action": "aws:executeAwsApi",
+      "onFailure": "step:waitForInstanceToBeReadyAfterReboot",
+      "inputs": {
+        "Service": "ec2",
+        "Api": "RebootInstances",
+        "InstanceIds": [
+          "{{ getInstance.InstanceId }}"
+        ]
+      },
+      "isCritical": "false",
+      "nextStep": "waitForInstanceToBeReadyAfterReboot"
+    },
+    {
+      "name": "waitForInstanceToBeReadyAfterReboot",
+      "action": "aws:waitForAwsResourceProperty",
+      "timeoutSeconds": 600,
+      "maxAttempts": 2,
+      "inputs": {
+        "Service": "ec2",
+        "Api": "DescribeInstanceStatus",
+        "InstanceIds": [
+          "{{ getInstance.InstanceId }}"
+        ],
+        "PropertySelector": "$.InstanceStatuses[0].InstanceStatus.Details[0].Status",
+        "DesiredValues": [
+          "passed"
+        ]
+      },
+      "isCritical": "true",
+      "nextStep": "assertSSMAgentOnInstance"
+    },
+    {
+      "name": "assertSSMAgentOnInstance",
+      "action": "aws:assertAwsResourceProperty",
+      "inputs": {
+        "Service": "ssm",
+        "Api": "DescribeInstanceInformation",
+        "InstanceInformationFilterList": [
+          {
+            "key": "InstanceIds",
+            "valueSet": [
+              "{{ getInstance.InstanceId }}"
+            ]
+          }
+        ],
+        "PropertySelector": "$.InstanceInformationList[0].PingStatus",
+        "DesiredValues": [
+          "Online"
+        ]
+      },
+      "isCritical": "true",
+      "nextStep": "doesInstanceNeedToBeConfigured"
+    },
+    {
+      "name": "doesInstanceNeedToBeConfigured",
+      "action": "aws:branch",
+      "onFailure": "Abort",
+      "inputs": {
+        "Choices": [
+          {
+            "Not": {
+              "Variable": "{{ InstanceId }}",
+              "EqualsIgnoreCase": ""
+            },
+            "NextStep": "restoreToExistingEC2Instance"
+          }
+        ],
+        "Default": "restoreToNewInstance"
+      }
+    },
+    {
+      "name": "restoreToNewInstance",
+      "action": "aws:runCommand",
+      "inputs": {
+        "DocumentName": "AWS-RunPowerShellScript",
+        "InstanceIds": [
+          "{{ getInstance.InstanceId }}"
+        ],
+        "Parameters": {
+          "commands": [
+            "New-Item -Name SQLServerReplatform -ItemType directory",
+            "cd SQLServerReplatform",
+            "$currentDirectory = $(Get-Location).Path",
+            "Write-Host SSM current directory: $currentDirectory",
+            "New-Item -Name Scripts -ItemType directory",
+            "[void](wget -P $currentDirectory/Scripts https://s3-us-west-1.amazonaws.com/awsec2-server-upgrade-prod/SQLServerRestore.zip)",
+            "Expand-Archive -Path $currentDirectory/Scripts/SQLServerRestore.zip -DestinationPath $currentDirectory/Scripts",
+            "$smoDirectory = $currentDirectory+'/Scripts/SMODLL'",
+            "./Scripts/SQLServerRestore.ps1 -S3Input \"{{ S3Input }}\" -IsS3PresignedURL {{IsS3PresignedURL}} -InstanceIsNew $true -RunningDirectory $currentDirectory -DatabaseNames \"{{ DatabaseNames }}\" -ExecutionId {{automation:EXECUTION_ID}} -SmodllPath $smoDirectory",
+            "rm -r $currentDirectory/Scripts"
+          ]
+        }
+      },
+      "isEnd": "true"
+    },
+    {
+      "name": "restoreToExistingEC2Instance",
+      "action": "aws:runCommand",
+      "inputs": {
+        "DocumentName": "AWS-RunPowerShellScript",
+        "InstanceIds": [
+          "{{ InstanceId }}"
+        ],
+        "Parameters": {
+          "commands": [
+            "if ($(Test-Path SQLServerReplatform) -eq $False) { New-Item -Name SQLServerReplatform -ItemType directory }",
+            "cd SQLServerReplatform",
+            "$currentDirectory = $(Get-Location).Path",
+            "Write-Host SSM current directory: $currentDirectory",
+            "if ($(Test-Path Scripts) -eq $True) { rm -r Scripts }",
+            "New-Item -Name Scripts -ItemType directory",
+            "[void](wget -P $currentDirectory/Scripts https://s3-us-west-1.amazonaws.com/awsec2-server-upgrade-prod/SQLServerRestore.zip)",
+            "Expand-Archive -Path $currentDirectory/Scripts/SQLServerRestore.zip -DestinationPath $currentDirectory/Scripts",
+            "$smoDirectory = $currentDirectory+'/Scripts/SMODLL'",
+            "./Scripts/SQLServerRestore.ps1 -S3Input \"{{ S3Input }}\" -IsS3PresignedURL {{IsS3PresignedURL}} -InstanceIsNew $false -RunningDirectory $currentDirectory -DatabaseNames \"{{ DatabaseNames }}\" -ExecutionId {{automation:EXECUTION_ID}} -SmodllPath $smoDirectory",
+            "rm -r $currentDirectory/Scripts"
+          ]
+        }
+      },
+      "isEnd": "true"
+    },
+    {
+      "name": "restoreToExistingManagedInstance",
+      "action": "aws:runCommand",
+      "inputs": {
+        "DocumentName": "AWS-RunShellScript",
+        "InstanceIds": [
+          "{{ InstanceId }}"
+        ],
+        "Parameters": {
+          "commands": [
+            "wget https://s3-us-west-1.amazonaws.com/awsec2-server-upgrade-prod/ManagedInstanceSQLServerRestoreWrapper.ps1",
+            "sudo pwsh ./ManagedInstanceSQLServerRestoreWrapper.ps1 -S3Input \"{{ S3Input }}\" -IsS3PresignedURL {{IsS3PresignedURL}} -DatabaseNames \"{{ DatabaseNames }}\" -ExecutionId {{automation:EXECUTION_ID}}",
+            "rm -r ManagedInstanceSQLServerRestoreWrapper.ps1"
+          ]
+        }
+      },
+      "isEnd": "true"
+    }
+  ],
+  "outputs": [
+    "getInstance.InstanceId",
+    "restoreToNewInstance.Output",
+    "restoreToExistingEC2Instance.Output",
+    "restoreToExistingManagedInstance.Output"
+  ]
+}
