@@ -1211,7 +1211,7 @@
                 "Windows", 
                 "Linux"
             ], 
-            "DocumentVersion": "4", 
+            "DocumentVersion": "6", 
             "DocumentType": "Automation", 
             "Owner": "Amazon", 
             "SchemaVersion": "0.3", 
@@ -1262,7 +1262,7 @@
             "PlatformTypes": [
                 "Windows"
             ], 
-            "DocumentVersion": "4", 
+            "DocumentVersion": "5", 
             "DocumentType": "Command", 
             "Owner": "Amazon", 
             "SchemaVersion": "2.2", 
@@ -1312,7 +1312,7 @@
                 "Windows", 
                 "Linux"
             ], 
-            "DocumentVersion": "5", 
+            "DocumentVersion": "4", 
             "DocumentType": "Command", 
             "Owner": "Amazon", 
             "SchemaVersion": "2.2", 
@@ -1324,7 +1324,7 @@
             "PlatformTypes": [
                 "Windows"
             ], 
-            "DocumentVersion": "3", 
+            "DocumentVersion": "2", 
             "DocumentType": "Command", 
             "Owner": "Amazon", 
             "SchemaVersion": "2.2", 

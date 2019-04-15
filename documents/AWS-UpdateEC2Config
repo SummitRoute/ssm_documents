@@ -21,7 +21,7 @@
     "aws:updateAgent": {
       "properties": {
         "agentName": "Ec2Config",
-        "source": "https://s3.us-west-2.amazonaws.com/aws-ssm-us-west-2/manifest.json",
+        "source": "https://s3.us-east-1.amazonaws.com/aws-ssm-us-east-1/manifest.json",
         "allowDowngrade": "{{ allowDowngrade }}",
         "targetVersion": "{{ version }}"
       }

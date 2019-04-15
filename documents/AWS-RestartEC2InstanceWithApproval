@@ -1,5 +1,5 @@
 {
-  "description": "Restart EC2 instances(s)",
+  "description": "Restart EC2 instances(s) with approval",
   "schemaVersion": "0.3",
   "assumeRole": "{{ AutomationAssumeRole }}",
   "parameters": {
