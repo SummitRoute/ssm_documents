@@ -659,7 +659,7 @@
             "DocumentType": "Automation", 
             "Owner": "Amazon", 
             "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
+            "DocumentFormat": "YAML"
         }, 
         {
             "TargetType": "/AWS::EC2::Instance", 
