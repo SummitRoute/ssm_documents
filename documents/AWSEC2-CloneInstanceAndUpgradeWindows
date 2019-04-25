@@ -350,7 +350,7 @@
     {
       "name": "serverUpgradeInstance",
       "action": "aws:runInstances",
-      "timeoutSeconds": 2700,
+      "timeoutSeconds": 7200,
       "maxAttempts": 3,
       "onFailure": "Abort",
       "inputs": {
@@ -446,6 +446,8 @@
     {
       "name": "assertSSMAgentOnServerUpgradeInstance",
       "action": "aws:assertAwsResourceProperty",
+      "timeoutSeconds": 600,
+      "maxAttempts": 3,
       "onFailure": "step:deleteServerUpgradeInstance",
       "inputs": {
         "Service": "ssm",
@@ -534,7 +536,7 @@
             "$TEMPSTORAGE=\"C:\\\\WindowsUpgrade\\\\{{ automation:EXECUTION_ID }}\" \n",
             "$TEMPSTOGAREFILE=\"$TEMPSTORAGE\\\\drive.txt\" \n",
             "New-Item -ItemType directory -Path $TEMPSTORAGE | out-null\n",
-            "([System.IO.DriveInfo]::getdrives()  | select-object -ExpandProperty Name) -join '' |Out-File \"$TEMPSTOGAREFILE\" | out-null\n",
+            "([System.IO.DriveInfo]::getdrives()  | select-object -ExpandProperty Name) -join ',' |Out-File \"$TEMPSTOGAREFILE\" | out-null\n",
             "GetSnapshot-ForCulture\n"
           ]
         }
@@ -903,10 +905,21 @@
             "function Find-WindowSetupPath \n",
             "{ \n",
             "     Enable-OfflineDisk\n",
-            "\t $CurrentDrives=([System.IO.DriveInfo]::getdrives() | select-object -ExpandProperty Name) -join '' \n",
+            "\t $CurrentDrives=([System.IO.DriveInfo]::getdrives() | select-object -ExpandProperty Name) -join ',' \n",
             "\t Write-host \" Current drives are $CurrentDrives\" \n",
             "\t $OldDrives=Get-Content -Path \"C:\\\\WindowsUpgrade\\\\{{ automation:EXECUTION_ID }}\\\\drive.txt\" -TotalCount 1\n",
-            "\t $NewDrive=$CurrentDrives.replace($OldDrives,'') \n",
+            "\t $oldDriveArray = $OldDrives.split(',')\n",
+            "\t $newDriveArray = $CurrentDrives.split(',')\n",
+            "\t foreach($drive in $newDriveArray){\n",
+            "\t \tif(-not $oldDriveArray.Contains($drive)){\n",
+            "\t \t\t$NewDrive = $drive\n",
+            "\t \t\tbreak\n",
+            "\t \t}\n",
+            "\t }\n",
+            "     if(-not $NewDrive){\n",
+            "        Write-Log \"Can't find the new drive\"\n",
+            "        exit -1\n",
+            "     }\n",
             "\t $SetupLocation= \"$NewDrive\\\\setup.exe\"     \n",
             "\t Write-host \"olddrives $OldDrives , Currentdrives $CurrentDrives, Newdrive $NewDrive, setup location is $SetupLocation \" \n",
             "\t if((Test-Path $SetupLocation) -eq $false) \n",
