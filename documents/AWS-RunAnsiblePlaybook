@@ -19,7 +19,7 @@
       "description": "(Optional) Additional variables to pass to Ansible at runtime. Enter a space separated list of key/value pairs. For example: color=red flavor=lime",
       "default": "SSM=True",
       "displayType": "textarea",
-      "allowedPattern": "^$|^\\w+\\=\\w+(\\s\\w+\\=\\w+)*$"
+      "allowedPattern": "^$|^\\w+\\=\\S+(\\s\\w+\\=\\S+)*$"
     },
     "check": {
       "type": "String",

@@ -1250,7 +1250,7 @@
                 "Windows", 
                 "Linux"
             ], 
-            "DocumentVersion": "5", 
+            "DocumentVersion": "6", 
             "DocumentType": "Automation", 
             "Owner": "Amazon", 
             "SchemaVersion": "0.3", 
