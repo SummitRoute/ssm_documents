@@ -939,7 +939,7 @@
             "\t $oldDriveArray = $OldDrives.split(',')\n",
             "\t $newDriveArray = $CurrentDrives.split(',')\n",
             "\t foreach($drive in $newDriveArray){\n",
-            "\t \tif(-not $oldDriveArray.Contains($drive)){\n",
+            "\t \tif(-not ($oldDriveArray -contains $drive)){\n",
             "\t \t\t$NewDrive = $drive\n",
             "\t \t\tbreak\n",
             "\t \t}\n",

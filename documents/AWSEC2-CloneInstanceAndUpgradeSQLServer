@@ -1030,7 +1030,7 @@
             "\t $oldDriveArray = $OLDDRIVES.split(',')\n",
             "\t $newDriveArray = $CURRENTDRIVE.split(',')\n",
             "\t foreach($drive in $newDriveArray){\n",
-            "\t \tif(-not $oldDriveArray.Contains($drive)){\n",
+            "\t \tif(-not ($oldDriveArray -contains $drive)){\n",
             "\t \t\t$NEWDRIVE = $drive\n",
             "\t \t\tbreak\n",
             "\t \t}\n",
