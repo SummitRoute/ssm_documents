@@ -1,10 +1,10 @@
 {
   "schemaVersion": "0.3",
-  "description": "SSM Automation for Upgrading SQL Server 2008 R2 to 2016. The running instance remain untouched. If the instance is running Window Server 2008 R2, the automation will upgrade the OS to Window Server 2012 R2",
+  "description": "SSM Automation for Upgrading SQL Server 2008(or later) to 2016. The running instance remain untouched. If the instance is running Window Server 2008 R2, the automation will upgrade the OS to Window Server 2012 R2",
   "parameters": {
     "InstanceId": {
       "type": "String",
-      "description": "(Required) The Instance running Windows Server 2008 R2 or above, SQL Server 2008 R2 or above, with the SSM agent installed."
+      "description": "(Required) The Instance running Windows Server 2008 R2 or above, SQL Server 2008 or above, with the SSM agent installed."
     },
     "IamInstanceProfile": {
       "type": "String",
@@ -112,8 +112,7 @@
             "   if($v -ge 10){\n",
             "       if($v -eq 10 ){\n",
             "           if ($instanceDetails.SP -lt 3) {\n",
-            "                 Write-host \" SQL Server Version 2008 R2 SP3 and above are supported presently\" \n",
-            "                 exit 1\n",
+            "                 Write-host \"SQL Server Version 2008 , apply patch for SQL Server 2008\" \n",
             "              } ElseIf ($instanceDetails.SP -eq 3){\n",
             "                    Write-host \"Supported SQL Version 2008 R2 SP3\" \n",
             "              }\n",
@@ -554,7 +553,7 @@
         ]
       },
       "isCritical": "false",
-      "nextStep": "assertSSMAgentOnServerUpgradeInstance"
+      "nextStep": "waitForSSMAgentOnlineOnServerUpgradeInstance"
     },
     {
       "name": "rebootToMakeItReady",
@@ -588,11 +587,11 @@
         ]
       },
       "isCritical": "true",
-      "nextStep": "assertSSMAgentOnServerUpgradeInstance"
+      "nextStep": "waitForSSMAgentOnlineOnServerUpgradeInstance"
     },
     {
-      "name": "assertSSMAgentOnServerUpgradeInstance",
-      "action": "aws:assertAwsResourceProperty",
+      "name": "waitForSSMAgentOnlineOnServerUpgradeInstance",
+      "action": "aws:waitForAwsResourceProperty",
       "timeoutSeconds": 600,
       "maxAttempts": 3,
       "onFailure": "step:deleteServerUpgradeInstance",
@@ -649,9 +648,14 @@
       "inputs": {
         "Choices": [
           {
-            "NextStep": "checkAndInstallSpecificPatchesFor2008R2SP3",
+            "NextStep": "checkAndInstallSpecificPatchesForWindows2012R2",
             "Variable": "{{ assertReadyToUpgradeSQLServer.Output }}",
             "Contains": "2008 R2 SP3"
+          },
+          {
+            "NextStep": "applySQLServerPatchForUpgradeEligible",
+            "Variable": "{{ assertReadyToUpgradeSQLServer.Output }}",
+            "Contains": "apply patch for SQL Server 2008"
           }
         ],
         "Default": "runScriptBeforeSQLServerUpgrade"
@@ -659,7 +663,129 @@
       "isCritical": "true"
     },
     {
-      "name": "checkAndInstallSpecificPatchesFor2008R2SP3",
+      "name": "applySQLServerPatchForUpgradeEligible",
+      "action": "aws:runCommand",
+      "maxAttempts": 3,
+      "onFailure": "step:deleteServerUpgradeInstance",
+      "timeoutSeconds": 14400,
+      "inputs": {
+        "DocumentName": "AWS-RunPowerShellScript",
+        "InstanceIds": [
+          "{{ getServerUpgradeInstance.InstanceId }}"
+        ],
+        "Parameters": {
+          "commands": [
+            " function Apply-ServicePack\n",
+            " {\n",
+            " $SMOServerDLL = 'Microsoft.SqlServer.Management.Smo.Server'\n",
+            " [System.Reflection.Assembly]::LoadWithPartialName('Microsoft.SqlServer.SMO') | out-null\n",
+            " $SQLServer = New-Object ($SMOServerDLL) \n",
+            " Write-host \"SQLServer version $($SQLServer.VersionString)\"\n",
+            " $Versions = $SQLServer.VersionString.Split(\".\")\n",
+            " $SQLVersionObj = New-Object PSObject -Property @{\n",
+            "        Version = $SQLServer.VersionString\n",
+            "        Major = $Versions[0]\n",
+            "        Minor = $Versions[1]\n",
+            "        Build = $Versions[2]\n",
+            "        Revision = $Versions[3]\n",
+            "    }\n",
+            " if($SQLVersionObj.Major -ge 12){\n",
+            "     Write-host \"Already SQL Server 2014 or above running, exiting\"\n",
+            "     exit 0\n",
+            " }else{\n",
+            "\t$DownloadUrl = Get-DownloadPath $SQLVersionObj.Major $SQLVersionObj.Minor $SQLVersionObj.Build $SQLVersionObj.Revision\n",
+            "\tif(-not [string]::IsNullOrEmpty($DownloadUrl))\n",
+            "\t{\n",
+            "\t  $FileName = Split-Path $DownloadUrl -Leaf\n",
+            "\t  $ParentDirectory = \"C:\\\\SQLUpgrade\\\\{{ automation:EXECUTION_ID }}\"\n",
+            "\t  if((Test-Path $ParentDirectory) -eq $false)\n",
+            "\t  {\n",
+            "\t   \tNew-Item -ItemType directory -Path $ParentDirectory \n",
+            "\t  }\n",
+            "      $FullPath = $ParentDirectory + \"\\\" + $FileName\n",
+            "\t  Download-AndInstall $DownloadUrl $FullPath\n",
+            "\t  $SQLServerNew = New-Object ($SMOServerDLL) \n",
+            "\t  Write-Host \"After upgrade SQL Server version $($SQLServerNew.VersionString)\"\n",
+            "\t}\n",
+            "\telse\n",
+            "\t{\n",
+            "\t  Write-host \"No need to install Service pack\"\n",
+            "\t}\n",
+            "  }\n",
+            " }\n",
+            " \n",
+            " function Get-DownloadPath\n",
+            " {\n",
+            "    PARAM\n",
+            "    (\n",
+            "          $Major\n",
+            "        , $Minor\n",
+            "        , $Build\n",
+            "        , $Revision\n",
+            "    )\n",
+            "    if($Major -eq 10){\n",
+            "       #Microsoft SQL Server 2008 sp4, 10.0.6000.29\"\n",
+            "       if($Minor -eq 0 -and ($Build -lt 6000 -or ($Build -eq 6000 -and $Revision -lt 29)))\n",
+            "       {\n",
+            "         return \"https://download.microsoft.com/download/5/E/7/5E7A89F7-C013-4090-901E-1A0F86B6A94C/ENU/SQLServer2008SP4-KB2979596-x64-ENU.exe\"\n",
+            "       }\n",
+            "       #Microsoft SQL Server 2008 R2 sp3, 10.50.6000.234\"\n",
+            "       elseif($Minor -lt 50 -or ($Minor -eq 50 -and $Build -lt 6000) -or ($Minor -eq 50 -and $Build -eq 6000 -and $Revision -lt 34))\n",
+            "       {\n",
+            "        return \"https://download.microsoft.com/download/D/7/A/D7A28B6C-FCFE-4F70-A902-B109388E01E9/ENU/SQLServer2008R2SP3-KB2979597-x64-ENU.exe\"\n",
+            "       }\n",
+            "    }else{\n",
+            "       #SQL Server 2012 Sp2 , 11.0.5058.0\n",
+            "       if($Minor -eq 0 -and $Build -lt 5058){\n",
+            "          return \"https://download.microsoft.com/download/D/F/7/DF7BEBF9-AA4D-4CFE-B5AE-5C9129D37EFD/SQLServer2012SP2-KB2958429-x64-ENU.exe\"\n",
+            "       }\n",
+            "    }\n",
+            " }\n",
+            " \n",
+            " function Download-AndInstall\n",
+            " {\n",
+            "  PARAM\n",
+            "  (\n",
+            "        $UrlToDownload\n",
+            "       ,$LocalFilePath\n",
+            "  )\n",
+            "  $wc = New-Object System.Net.WebClient \n",
+            "  $attemptCount = 0\n",
+            "  Do { \n",
+            "        $attemptCount++  \n",
+            "\t\t$wc.DownloadFile($UrlToDownload , $LocalFilePath) \n",
+            "     } while (((Test-Path $LocalFilePath) -eq $false) -and ($attemptCount -le 3)) \n",
+            "  If ((Test-Path $LocalFilePath) -eq $true)  \n",
+            "   { \n",
+            "      Write-Host \"Downloaded service pack to  file to $LocalFilePath\" \n",
+            "      if($UrlToDownload.IndexOf(\"SQLServer2008SP4\") -ge 0)\n",
+            "      {\n",
+            "        $InstallParameters = \"/allinstances /quiet \"\n",
+            "      }\n",
+            "      else\n",
+            "      {\n",
+            "        $InstallParameters = \"/allinstances /quiet /IAcceptSQLServerLicenseTerms=True\"\n",
+            "      }\n",
+            "      Start-Process $LocalFilePath -ArgumentList $InstallParameters -NoNewWindow -Wait\n",
+            "      Write-Host \"Installation complete\"\n",
+            "   } \n",
+            "   Else{ \n",
+            "      Write-Host \"Error: Couldn’t download service pack, exiting\"  \n",
+            "      exit 1  \n",
+            "   } \n",
+            "  \n",
+            " }\n",
+            " Apply-ServicePack\n",
+            "  \n",
+            "  "
+          ]
+        }
+      },
+      "isCritical": "true",
+      "nextStep": "checkAndInstallSpecificPatchesForWindows2012R2"
+    },
+    {
+      "name": "checkAndInstallSpecificPatchesForWindows2012R2",
       "action": "aws:runCommand",
       "maxAttempts": 3,
       "onFailure": "step:deleteServerUpgradeInstance",
@@ -804,7 +930,10 @@
             "\t Enable-OfflineDisk\n",
             "\t $TEMPSTORAGE = \"C:\\\\SQLUpgrade\\\\{{ automation:EXECUTION_ID }}\"\n",
             "\t $TEMPSTOGAREFILE = \"$TEMPSTORAGE\\\\drive.txt\"\n",
-            "\t New-Item -ItemType directory -Path $TEMPSTORAGE \n",
+            "\t if((Test-Path $TEMPSTORAGE) -eq $false){\n",
+            "\t \tNew-Item -ItemType directory -Path $TEMPSTORAGE\n",
+            "\t }\n",
+            "\t  \n",
             "\t ([System.IO.DriveInfo]::getdrives() | Where-Object {$_.DriveType -eq 'Fixed'} | select-object -ExpandProperty Name) -join ',' |Out-File \"$TEMPSTOGAREFILE\" \n",
             "\t $OLDDRIVES=Get-Content -Path \"C:\\\\SQLUpgrade\\\\{{ automation:EXECUTION_ID }}\\\\drive.txt\" -TotalCount 1 \n",
             "\t Write-host \"Drives are $OLDDRIVES \"\n",
@@ -1083,11 +1212,11 @@
       },
       "onFailure": "step:deleteServerUpgradeInstance",
       "isCritical": "true",
-      "nextStep": "assertSSMAgentOnlineAfterUpgrade"
+      "nextStep": "waitForSSMAgentOnlineAfterUpgrade"
     },
     {
-      "name": "assertSSMAgentOnlineAfterUpgrade",
-      "action": "aws:assertAwsResourceProperty",
+      "name": "waitForSSMAgentOnlineAfterUpgrade",
+      "action": "aws:waitForAwsResourceProperty",
       "maxAttempts": 3,
       "onFailure": "step:deleteServerUpgradeInstance",
       "inputs": {

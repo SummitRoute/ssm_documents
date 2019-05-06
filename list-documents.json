@@ -1237,7 +1237,7 @@
                 "Windows", 
                 "Linux"
             ], 
-            "DocumentVersion": "7", 
+            "DocumentVersion": "8", 
             "DocumentType": "Automation", 
             "Owner": "Amazon", 
             "SchemaVersion": "0.3", 
@@ -1250,7 +1250,7 @@
                 "Windows", 
                 "Linux"
             ], 
-            "DocumentVersion": "7", 
+            "DocumentVersion": "8", 
             "DocumentType": "Automation", 
             "Owner": "Amazon", 
             "SchemaVersion": "0.3", 

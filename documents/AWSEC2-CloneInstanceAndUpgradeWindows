@@ -407,7 +407,7 @@
         ]
       },
       "isCritical": "false",
-      "nextStep": "assertSSMAgentOnServerUpgradeInstance"
+      "nextStep": "waitSSMAgentOnlineOnServerUpgradeInstance"
     },
     {
       "name": "rebootToMakeItReady",
@@ -441,11 +441,11 @@
         ]
       },
       "isCritical": "true",
-      "nextStep": "assertSSMAgentOnServerUpgradeInstance"
+      "nextStep": "waitSSMAgentOnlineOnServerUpgradeInstance"
     },
     {
-      "name": "assertSSMAgentOnServerUpgradeInstance",
-      "action": "aws:assertAwsResourceProperty",
+      "name": "waitSSMAgentOnlineOnServerUpgradeInstance",
+      "action": "aws:waitForAwsResourceProperty",
       "timeoutSeconds": 600,
       "maxAttempts": 3,
       "onFailure": "step:deleteServerUpgradeInstance",
@@ -1081,7 +1081,6 @@
       "name": "checkAfterUpgrade",
       "onFailure": "step:deleteServerUpgradeInstance",
       "maxAttempts": 3,
-      "timeoutSeconds": 300,
       "inputs": {
         "DocumentName": "AWS-RunPowerShellScript",
         "InstanceIds": [
