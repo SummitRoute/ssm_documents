@@ -1231,6 +1231,19 @@
             "DocumentFormat": "JSON"
         }, 
         {
+            "Name": "AWSEC2-ApplicationInsightsCloudwatchAgentInstallAndConfigure", 
+            "Tags": [], 
+            "PlatformTypes": [
+                "Windows", 
+                "Linux"
+            ], 
+            "DocumentVersion": "2", 
+            "DocumentType": "Command", 
+            "Owner": "Amazon", 
+            "SchemaVersion": "2.2", 
+            "DocumentFormat": "JSON"
+        }, 
+        {
             "Name": "AWSEC2-CloneInstanceAndUpgradeSQLServer", 
             "Tags": [], 
             "PlatformTypes": [

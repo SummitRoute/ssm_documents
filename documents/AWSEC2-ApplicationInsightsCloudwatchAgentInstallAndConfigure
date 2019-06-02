@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "2.2",
+  "description": "A composite document for installing and configuring CloudWatchAgent.",
+  "parameters": {
+    "parameterStoreName": {
+      "description": "(Required) The value is the ssm parameter store name for ssm config source.",
+      "type": "String",
+      "allowedPattern": "[^\"]*"
+    }
+  },
+  "mainSteps": [
+    {
+      "action": "aws:configurePackage",
+      "name": "configurePackage",
+      "inputs": {
+        "name": "AmazonCloudWatchAgent",
+        "action": "Install"
+      }
+    },
+    {
+      "action": "aws:runDocument",
+      "name": "configureCWAgent",
+      "inputs": {
+        "documentType": "SSMDocument",
+        "documentPath": "AmazonCloudWatch-ManageAgent",
+        "documentParameters": "{\"action\":\"configure (append)\",\"mode\" : \"ec2\",\"optionalConfigurationSource\" : \"ssm\",\"optionalConfigurationLocation\" : {{parameterStoreName}}}"
+      }
+    }
+  ]
+}
