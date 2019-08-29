@@ -85,6 +85,15 @@
         "Enabled",
         "Disabled"
       ]
+    },
+    "billingInfo": {
+      "type": "String",
+      "default": "Enabled",
+      "description": "(Optional) Collect billing info for license included applications.",
+      "allowedValues": [
+        "Enabled",
+        "Disabled"
+      ]
     }
   },
   "mainSteps": [
@@ -101,6 +110,7 @@
         "windowsRegistry": "{{ windowsRegistry}}",
         "windowsUpdates": "{{ windowsUpdates }}",
         "instanceDetailedInformation": "{{ instanceDetailedInformation }}",
+        "billingInfo": "{{ billingInfo }}",
         "customInventory": "{{ customInventory }}"
       }
     }

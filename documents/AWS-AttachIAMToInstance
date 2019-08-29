@@ -1,6 +1,7 @@
 {
-  "assumeRole": "{{ AutomationAssumeRole }}",
   "description": "Attach IAM to Instance",
+  "schemaVersion": "0.3",
+  "assumeRole": "{{ AutomationAssumeRole }}",
   "parameters": {
     "InstanceId": {
       "type": "String",
@@ -10,59 +11,213 @@
       "type": "String",
       "description": "(Required) Role Name to add"
     },
-    "LambdaAssumeRole": {
-      "default": "",
-      "type": "String",
-      "description": "(Optional) The ARN of the role assumed by lambda"
+    "ForceReplace": {
+      "type": "Boolean",
+      "description": "(Optional) Flag to specify whether to replace the existing iam profile or not.",
+      "default": true
     },
     "AutomationAssumeRole": {
-      "default": "",
       "type": "String",
-      "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf. "
+      "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf. ",
+      "default": ""
     }
   },
-  "outputs": [
-    "attachIAMToInstance.LogResult",
-    "attachIAMToInstance.Payload"
-  ],
-  "schemaVersion": "0.3",
   "mainSteps": [
     {
-      "action": "aws:createStack",
+      "name": "DescribeInstanceProfile",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Abort",
       "inputs": {
-        "StackName": "AttachIAMToInstanceStack{{automation:EXECUTION_ID}}",
-        "TemplateBody": "AWSTemplateFormatVersion: '2010-09-09'\nConditions:\n  LambdaAssumeRoleNotSpecified:\n    Fn::Or:\n    - Fn::Equals:\n      - {Ref: LambdaRoleArn}\n      - ''\n    - Fn::Equals:\n      - {Ref: LambdaRoleArn}\n      - undefined\nParameters:\n  LambdaName: {Description: 'The lambda function name\n\n      ', Type: String}\n  LambdaRoleArn: {Default: '', Description: 'The ARN of the role that allows Lambda\n      created by Automation to perform the action on your behalf\n\n      ', Type: String}\nResources:\n  AttachIAMToInstanceLambda:\n    Properties:\n      Code: {ZipFile: \"import boto3\\nimport time\\nimport logging\\n\\nlogger = logging.getLogger()\\n\\\n          logger.setLevel(logging.INFO)\\n\\niam_client = boto3.client('iam')\\nec2_client\\\n          \\ = boto3.client('ec2')\\n\\n\\ndef find_or_create_instance_profile(role_name):\\n\\\n          \\tresponse = iam_client.list_instance_profiles_for_role(RoleName=role_name)\\n\\\n          \\tif len(response['InstanceProfiles']) != 0:\\n\\t\\tlogger.info(\\\"Instance\\\n          \\ profile with role \\\" + role_name + \\\" already exists\\\")\\n\\t\\tinstance_profile\\\n          \\ = response['InstanceProfiles'][0]\\n\\telse:\\n\\t\\tlogger.info(\\\"Creating\\\n          \\ instance profile for role \\\" + role_name)\\n\\t\\tresponse = iam_client.create_instance_profile(\\n\\\n          \\t\\t\\tInstanceProfileName=role_name,\\n\\t\\t\\tPath='/'\\n\\t\\t)\\n\\t\\tinstance_profile\\\n          \\ = response['InstanceProfile']\\n\\n\\t\\t# Now assign the role to the profile\\n\\\n          \\t\\tiam_client.add_role_to_instance_profile(\\n\\t\\t\\tInstanceProfileName=instance_profile['InstanceProfileName'],\\n\\\n          \\t\\t\\tRoleName=role_name\\n\\t\\t)\\n\\n\\treturn {\\n\\t\\t'InstanceProfileName':\\\n          \\ instance_profile['InstanceProfileName'],\\n\\t\\t'Arn': instance_profile['Arn']\\n\\\n          \\t}\\n\\n\\ndef associate_instance_profile(profile_name, profile_arn, instance_id):\\n\\\n          \\tlogger.info(\\\"Associating instance profile: \\\" + profile_name + \\\" to\\\n          \\ \\\" + instance_id)\\n\\t# For whatever reason, new instance profiles are\\\n          \\ not available immediately. So we try again\\n\\tretry_count = 6\\n\\twhile\\\n          \\ True:\\n\\t\\ttry:\\n\\t\\t\\treturn ec2_client.associate_iam_instance_profile(\\n\\\n          \\t\\t\\t\\tIamInstanceProfile={\\n\\t\\t\\t\\t\\t'Arn': profile_arn,\\n\\t\\t\\t\\t\\t\\\n          'Name': profile_name\\n\\t\\t\\t\\t},\\n\\t\\t\\t\\tInstanceId=instance_id\\n\\t\\t\\t\\\n          )\\n\\t\\texcept Exception as e:\\n\\t\\t\\tretry_count -= 1\\n\\t\\t\\tif retry_count\\\n          \\ == 0:\\n\\t\\t\\t\\traise e\\n\\n\\t\\t\\tlogger.info(\\\"Unable to associate instance\\\n          \\ profile... trying again in 10 sec\\\")\\n\\t\\t\\ttime.sleep(10)\\n\\n\\ndef handler(event,\\\n          \\ context):\\n\\tinstance_id = event['InstanceId']\\n\\trole_name = event['RoleName']\\n\\\n          \\n\\tresponse = ec2_client.describe_iam_instance_profile_associations(Filters=[{\\n\\\n          \\t\\t'Name': 'instance-id',\\n\\t\\t'Values': [instance_id]\\n\\t}])\\n\\n\\tif len(response['IamInstanceProfileAssociations'])\\\n          \\ != 0:\\n\\t\\tlogger.info(\\\"Instance Profile already exists. Will attach\\\n          \\ role to existing instance profile\\\")\\n\\n\\t\\tiam_instance_profile_association\\\n          \\ = response['IamInstanceProfileAssociations'][0]\\n\\t\\tassociation_id =\\\n          \\ iam_instance_profile_association['AssociationId']\\n\\t\\tec2_client.disassociate_iam_instance_profile(AssociationId=association_id)\\n\\\n          \\n\\tinstance_profile = find_or_create_instance_profile(role_name)\\n\\tassociation_response\\\n          \\ = associate_instance_profile(instance_profile['InstanceProfileName'],\\\n          \\ instance_profile['Arn'],\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t  instance_id)\\n\\t\\\n          association_id = association_response['IamInstanceProfileAssociation']['AssociationId']\\n\\\n          \\n\\treturn {\\n\\t\\t\\\"InstanceProfileName\\\": instance_profile['InstanceProfileName'],\\n\\\n          \\t\\t\\\"Arn\\\": instance_profile['Arn'],\\n\\t\\t\\\"RoleName\\\": event['RoleName'],\\n\\\n          \\t\\t\\\"AssociationId\\\": association_id\\n\\t}\\n\"}\n      FunctionName: {Ref: LambdaName}\n      Handler: index.handler\n      MemorySize: 128\n      Role:\n        Fn::If:\n        - LambdaAssumeRoleNotSpecified\n        - Fn::GetAtt: [LambdaRole, Arn]\n        - {Ref: LambdaRoleArn}\n      Runtime: python2.7\n      Timeout: 60\n    Type: AWS::Lambda::Function\n  LambdaRole:\n    Condition: LambdaAssumeRoleNotSpecified\n    Properties:\n      AssumeRolePolicyDocument:\n        Statement:\n        - Action: ['sts:AssumeRole']\n          Effect: Allow\n          Principal:\n            Service: [lambda.amazonaws.com]\n        Version: '2012-10-17'\n      Path: /\n      Policies:\n      - PolicyDocument:\n          Statement:\n            Action: ['ec2:AssociateIamInstanceProfile', 'ec2:DescribeIamInstanceProfileAssociations',\n              'ec2:DisassociateIamInstanceProfile', 'iam:AddRoleToInstanceProfile',\n              'iam:CreateInstanceProfile', 'iam:ListInstanceProfilesForRole', 'iam:PassRole']\n            Effect: Allow\n            Resource: '*'\n          Version: '2012-10-17'\n        PolicyName: AttachIAMToInstanceLambdaPolicy\n    Type: AWS::IAM::Role\n",
-        "Parameters": [
+        "Service": "ec2",
+        "Api": "describe_iam_instance_profile_associations",
+        "Filters": [
           {
-            "ParameterValue": "{{LambdaAssumeRole}}",
-            "ParameterKey": "LambdaRoleArn"
-          },
-          {
-            "ParameterValue": "AttachIAMToInstanceLambda-{{automation:EXECUTION_ID}}",
-            "ParameterKey": "LambdaName"
+            "Name": "instance-id",
+            "Values": [
+              "{{InstanceId}}"
+            ]
           }
-        ],
-        "Capabilities": [
-          "CAPABILITY_IAM"
         ]
       },
-      "name": "createDocumentStack"
+      "outputs": [
+        {
+          "Name": "InstanceProfileArn",
+          "Selector": "$.IamInstanceProfileAssociations[0].IamInstanceProfile.Arn",
+          "Type": "String"
+        },
+        {
+          "Name": "AssociationId",
+          "Selector": "$.IamInstanceProfileAssociations[0].AssociationId",
+          "Type": "String"
+        }
+      ]
     },
     {
-      "action": "aws:invokeLambdaFunction",
+      "name": "CheckInstanceProfileAssociations",
+      "action": "aws:branch",
       "inputs": {
-        "LogType": "Tail",
-        "FunctionName": "AttachIAMToInstanceLambda-{{automation:EXECUTION_ID}}",
-        "Payload": "{\"InstanceId\": \"{{InstanceId}}\", \"RoleName\": \"{{RoleName}}\"}"
+        "Choices": [
+          {
+            "NextStep": "ListInstanceProfilesForRole",
+            "Not": {
+              "Variable": "{{DescribeInstanceProfile.InstanceProfileArn}}",
+              "Contains": "arn:"
+            }
+          },
+          {
+            "NextStep": "DisassociateIamInstanceProfile",
+            "Variable": "{{ForceReplace}}",
+            "BooleanEquals": true
+          }
+        ]
       },
-      "name": "attachIAMToInstance"
+      "isEnd": true
     },
     {
-      "action": "aws:deleteStack",
+      "name": "DisassociateIamInstanceProfile",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Abort",
       "inputs": {
-        "StackName": "AttachIAMToInstanceStack{{automation:EXECUTION_ID}}"
+        "Service": "ec2",
+        "Api": "disassociate_iam_instance_profile",
+        "AssociationId": "{{DescribeInstanceProfile.AssociationId}}"
+      }
+    },
+    {
+      "name": "ListInstanceProfilesForRole",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "iam",
+        "Api": "list_instance_profiles_for_role",
+        "RoleName": "{{RoleName}}"
       },
-      "name": "deleteCloudFormationTemplate"
+      "outputs": [
+        {
+          "Name": "InstanceProfileArn",
+          "Selector": "$.InstanceProfiles[0].Arn",
+          "Type": "String"
+        },
+        {
+          "Name": "InstanceProfileName",
+          "Selector": "$.InstanceProfiles[0].InstanceProfileName",
+          "Type": "String"
+        }
+      ]
+    },
+    {
+      "name": "CheckInstanceProfileCreated",
+      "action": "aws:branch",
+      "inputs": {
+        "Choices": [
+          {
+            "NextStep": "CreateInstanceProfileForRole",
+            "Not": {
+              "Variable": "{{ListInstanceProfilesForRole.InstanceProfileArn}}",
+              "Contains": "arn:"
+            }
+          }
+        ],
+        "Default": "AttachIAMProfileToInstance"
+      }
+    },
+    {
+      "name": "AttachIAMProfileToInstance",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "ec2",
+        "Api": "associate_iam_instance_profile",
+        "InstanceId": "{{InstanceId}}",
+        "IamInstanceProfile": {
+          "Arn": "{{ListInstanceProfilesForRole.InstanceProfileArn}}",
+          "Name": "{{ListInstanceProfilesForRole.InstanceProfileName}}"
+        }
+      },
+      "isEnd": true,
+      "outputs": [
+        {
+          "Name": "AssociationId",
+          "Selector": "$.IamInstanceProfileAssociation.AssociationId",
+          "Type": "String"
+        }
+      ]
+    },
+    {
+      "name": "CreateInstanceProfileForRole",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "iam",
+        "Api": "create_instance_profile",
+        "InstanceProfileName": "{{RoleName}}",
+        "Path": "/"
+      }
+    },
+    {
+      "name": "AddRoleToInstanceProfile",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "iam",
+        "Api": "add_role_to_instance_profile",
+        "InstanceProfileName": "{{RoleName}}",
+        "RoleName": "{{RoleName}}"
+      }
+    },
+    {
+      "name": "GetInstanceProfile",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "iam",
+        "Api": "get_instance_profile",
+        "InstanceProfileName": "{{RoleName}}"
+      },
+      "outputs": [
+        {
+          "Name": "InstanceProfileArn",
+          "Selector": "$.InstanceProfile.Arn",
+          "Type": "String"
+        },
+        {
+          "Name": "InstanceProfileName",
+          "Selector": "$.InstanceProfile.InstanceProfileName",
+          "Type": "String"
+        }
+      ]
+    },
+    {
+      "name": "AttachIAMProfileToInstanceWithRetry",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Abort",
+      "maxAttempts": 20,
+      "timeoutSeconds": 2,
+      "inputs": {
+        "Service": "ec2",
+        "Api": "associate_iam_instance_profile",
+        "InstanceId": "{{InstanceId}}",
+        "IamInstanceProfile": {
+          "Arn": "{{GetInstanceProfile.InstanceProfileArn}}",
+          "Name": "{{GetInstanceProfile.InstanceProfileName}}"
+        }
+      },
+      "isEnd": true,
+      "outputs": [
+        {
+          "Name": "AssociationId",
+          "Selector": "$.IamInstanceProfileAssociation.AssociationId",
+          "Type": "String"
+        }
+      ]
     }
+  ],
+  "outputs": [
+    "AttachIAMProfileToInstanceWithRetry.AssociationId",
+    "GetInstanceProfile.InstanceProfileName",
+    "GetInstanceProfile.InstanceProfileArn",
+    "AttachIAMProfileToInstance.AssociationId",
+    "ListInstanceProfilesForRole.InstanceProfileName",
+    "ListInstanceProfilesForRole.InstanceProfileArn"
   ]
 }

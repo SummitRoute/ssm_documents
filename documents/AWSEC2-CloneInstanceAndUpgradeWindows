@@ -1,6 +1,6 @@
 {
   "schemaVersion": "0.3",
-  "description": "Given a running Instance with SSM Agent installed, upgrade to Windows Server 2012 R2. The running instance remained untouched. This document will create an AMI from the running instance and launch a new instance from the Image and will do upgrade.",
+  "description": "Given a running Instance with SSM Agent installed, upgrade to Windows Server 2012 R2. This document will create an AMI from the running instance and launch a new instance from the Image and will upgrade the new instance. Note that if the running instance does not have SSM installed, we will attempt to install SSM in the new instance before it is upgraded. The running instance remains untouched.",
   "parameters": {
     "InstanceId": {
       "type": "String",
@@ -41,121 +41,18 @@
   },
   "mainSteps": [
     {
-      "name": "assertSSMAgentOnline",
-      "action": "aws:assertAwsResourceProperty",
-      "onFailure": "Abort",
-      "inputs": {
-        "Service": "ssm",
-        "Api": "DescribeInstanceInformation",
-        "InstanceInformationFilterList": [
-          {
-            "key": "InstanceIds",
-            "valueSet": [
-              "{{ InstanceId }}"
-            ]
-          }
-        ],
-        "PropertySelector": "$.InstanceInformationList[0].PingStatus",
-        "DesiredValues": [
-          "Online"
-        ]
-      },
-      "isCritical": "true",
-      "nextStep": "assertSupportedWindowsVersion"
-    },
-    {
-      "name": "assertSupportedWindowsVersion",
-      "action": "aws:runCommand",
+      "name": "putSSMInvocationMetric",
+      "action": "aws:putServerUpgradeMetrics",
       "maxAttempts": 3,
       "onFailure": "Abort",
-      "timeoutSeconds": 600,
-      "isCritical": "true",
       "inputs": {
-        "DocumentName": "AWS-RunPowerShellScript",
-        "InstanceIds": [
-          "{{ InstanceId }}"
-        ],
-        "Parameters": {
-          "executionTimeout": "600",
-          "commands": [
-            "function Validate-InstanceLicensing([string]$WindowSnapshotId)\n",
-            " {\n",
-            "    $IsError = $True\n",
-            "    try\n",
-            "    {\n",
-            "       # compatible with PS2.0\n",
-            "        $webrequest = [System.Net.WebRequest]::Create(\"http://169.254.169.254/latest/dynamic/instance-identity/document\")\n",
-            "        $response = $webrequest.GetResponse()\n",
-            "        $stream = $response.GetResponseStream()\n",
-            "        $sr = new-object System.IO.StreamReader($stream)\n",
-            "        $content = $sr.ReadToEnd();\n",
-            "        [System.Reflection.Assembly]::LoadWithPartialName(\"System.Web.Extensions\") | out-null\n",
-            "        $ser = New-Object System.Web.Script.Serialization.JavaScriptSerializer\n",
-            "        $billingProduct = $ser.DeserializeObject($content).billingProducts\n",
-            "        if(($billingProduct -eq \"bp-6ba54002\") -or ($billingProduct -eq \"bp-68a54001\")){\n",
-            "            $IsError = $False\n",
-            "            Write-Host \"Instance has license included\" \n",
-            "        }\n",
-            "        elseif(-not [string]::IsNullOrEmpty($WindowSnapshotId)){\n",
-            "            $IsError = $False\n",
-            "            Write-Host \"Instance will use $WindowSnapshotId for BYOL\" \n",
-            "        }else{\n",
-            "            $IsError = $True\n",
-            "            Write-Host \"Your instance is BYOL, but you did not provide a BYOL Windows installation media snapshot id. Please re-run this automation with the necessary paramaters.\" \n",
-            "        }\n",
-            "    }  \n",
-            "    catch { \n",
-            "        Write-Error $_.Exception.Message\n",
-            "    }\n",
-            "    finally\n",
-            "    {\n",
-            "        if($sr -ne $null) { $sr.Close(); }\n",
-            "        if($response -ne $null) { $response.Close(); }\n",
-            "        if($IsError){\n",
-            "           exit 1\n",
-            "        }\n",
-            "        else{\n",
-            "            exit 0\n",
-            "        }\n",
-            "    }\n",
-            "}\n",
-            "\n",
-            "function Check-OSUpgradeCompatibility\n",
-            "{\n",
-            "      $osInfo = (Get-WmiObject -class Win32_OperatingSystem) \n",
-            "      # ProductType 3 = Server OS – Not a Domain Controller\n",
-            "      if($osInfo.ProductType -ne 3)\n",
-            "      {\n",
-            "            Write-Host \"This upgrade automation is not supported on Domain Controller or Work Station role. \" \n",
-            "            exit 1\n",
-            "      }\n",
-            "      $OSVersion = $osInfo.Caption.ToUpper() \n",
-            "      if($OSVersion.indexOf(\"2008 R2\") -ge 0 -and (($OSVersion.indexOf(\"STANDARD\") -ge 0) -or ($OSVersion.indexOf(\"DATACENTER\") -ge 0))) \n",
-            "      { \n",
-            "            Write-Host \"OSVersion : $OSVersion \" \n",
-            "      } \n",
-            "       else \n",
-            "       {  \n",
-            "            Write-Host 'This upgrade automation only supports Windows 2008 R2 Standard or Datacenter edition.' \n",
-            "            exit 1 \n",
-            "      } \n",
-            "     $Space = (Get-WMIObject Win32_Logicaldisk -filter \"deviceid='$($osInfo.systemdrive)'\").FreeSpace\n",
-            "     $AvailableGBSpace = [math]::floor($Space/1GB)\n",
-            "     if ($AvailableGBSpace -le 20 )\n",
-            "     {\n",
-            "     Write-Host \"Not enough space to continue upgrade. Avilable space $AvailableGBSpace GB, minimum required is 20 GB\"\n",
-            "     exit 1\n",
-            "     }\n",
-            "     \n",
-            "      \n",
-            "}\n",
-            "\n",
-            "Check-OSUpgradeCompatibility \n",
-            "$WindowSnapShotId = \"{{ BYOLWindowsMediaSnapshotId }}\" \n",
-            "Validate-InstanceLicensing($WindowSnapShotId) \n"
-          ]
-        }
-      }
+        "DimensionName": "SSM_METRICS",
+        "DimensionValue": "AWSEC2-CloneInstanceAndUpgradeWindows",
+        "MetricName": "Invocations",
+        "MetricValue": "1.0"
+      },
+      "isCritical": "true",
+      "nextStep": "describeOriginalInstanceDetails"
     },
     {
       "name": "describeOriginalInstanceDetails",
@@ -214,32 +111,26 @@
         ]
       },
       "isCritical": "true",
-      "nextStep": "assertRootVolumeIsNotEncrypted"
+      "nextStep": "assertSubnetHasAutoAssignIPV4"
     },
     {
-      "name": "assertRootVolumeIsNotEncrypted",
+      "name": "assertSubnetHasAutoAssignIPV4",
       "action": "aws:assertAwsResourceProperty",
       "onFailure": "Abort",
       "inputs": {
         "Service": "ec2",
-        "Api": "DescribeVolumes",
+        "Api": "DescribeSubnets",
         "Filters": [
           {
-            "Name": "attachment.instance-id",
+            "Name": "subnet-id",
             "Values": [
-              "{{ InstanceId }}"
-            ]
-          },
-          {
-            "Name": "attachment.device",
-            "Values": [
-              "{{ describeOriginalInstanceDetails.RootDeviceName }}"
+              "{{ SubnetId }}"
             ]
           }
         ],
-        "PropertySelector": "$.Volumes[0].Encrypted",
+        "PropertySelector": "$.Subnets[0].MapPublicIpOnLaunch",
         "DesiredValues": [
-          "False"
+          "True"
         ]
       },
       "isCritical": "true",
@@ -363,7 +254,8 @@
         "KeyName": "{{ describeOriginalInstanceDetails.KeyName }}",
         "SecurityGroupIds": [
           "{{ describeOriginalInstanceDetails.SecurityGroupIds }}"
-        ]
+        ],
+        "UserData": "PHBvd2Vyc2hlbGw+CiRzZXJ2aWNlTmFtZSA9ICJBbWF6b25TU01BZ2VudCIKJHNlcnZpY2VEb3dubG9hZFBhdGggPSAiQzpcdGVtcFxBbWF6b25TU01BZ2VudFNldHVwLmV4ZSIKCklmIChHZXQtU2VydmljZSAkc2VydmljZU5hbWUgLUVycm9yQWN0aW9uIFNpbGVudGx5Q29udGludWUgLVdhcm5pbmdBY3Rpb24gU2lsZW50bHlDb250aW51ZSkgewogICAgSWYgKChHZXQtU2VydmljZSAkc2VydmljZU5hbWUpLlN0YXR1cyAtbmUgIlJ1bm5pbmciKSB7CiAgICAgICAgU3RhcnQtU2VydmljZSAkc2VydmljZU5hbWUKICAgICAgICBXcml0ZS1Ib3N0ICIkc2VydmljZU5hbWUgZm91bmQsIGJ1dCBpdCBpcyBub3QgcnVubmluZywgc28gc3RhcnRlZCBpdC4iCiAgICB9Cn0gRWxzZSB7CiAgICBXcml0ZS1Ib3N0ICIkc2VydmljZU5hbWUgbm90IGZvdW5kLCB0cnlpbmcgdG8gaW5zdGFsbC4iCiAgICAgTmV3LUl0ZW0gLUl0ZW1UeXBlIERpcmVjdG9yeSAtRm9yY2UgLVBhdGggIkM6XHRlbXAiICAKICAgIChOZXctT2JqZWN0IFN5c3RlbS5OZXQuV2ViQ2xpZW50KS5Eb3dubG9hZEZpbGUoImh0dHBzOi8vczMuYW1hem9uYXdzLmNvbS9lYzItZG93bmxvYWRzLXdpbmRvd3MvU1NNQWdlbnQvbGF0ZXN0L3dpbmRvd3NfYW1kNjQvQW1hem9uU1NNQWdlbnRTZXR1cC5leGUiLCAiJHNlcnZpY2VEb3dubG9hZFBhdGgiKQogICAgU3RhcnQtUHJvY2VzcyAtRmlsZVBhdGggIiRzZXJ2aWNlRG93bmxvYWRQYXRoIiAgLUFyZ3VtZW50TGlzdCBAKCIvcXVpZXQiLCAiL25vcmVzdGFydCIsICIvbG9nIiwgInNzbS1pbnN0YWxsLmxvZyIsICJBTExPV0VDMklOU1RBTEw9WUVTIikgLVdhaXQKICAgIFN0YXJ0LVNsZWVwIC1zIDEwCiAgICBTdGFydC1TZXJ2aWNlICRzZXJ2aWNlTmFtZQogICAgV3JpdGUtSG9zdCAiJHNlcnZpY2VOYW1lIGluc3RhbGxlZCBhbmQgc3RhcnRlZC4iCn0KPC9wb3dlcnNoZWxsPgo8cGVyc2lzdD50cnVlPC9wZXJzaXN0Pg=="
       },
       "isCritical": "true",
       "nextStep": "getServerUpgradeInstance"
@@ -407,7 +299,7 @@
         ]
       },
       "isCritical": "false",
-      "nextStep": "waitSSMAgentOnlineOnServerUpgradeInstance"
+      "nextStep": "checkForSSMAgent"
     },
     {
       "name": "rebootToMakeItReady",
@@ -439,6 +331,81 @@
         "DesiredValues": [
           "passed"
         ]
+      },
+      "isCritical": "true",
+      "nextStep": "checkForSSMAgent"
+    },
+    {
+      "name": "checkForSSMAgent",
+      "action": "aws:executeAwsApi",
+      "onFailure": "step:prepareServerInstanceForSSMInstall",
+      "inputs": {
+        "Service": "ssm",
+        "Api": "DescribeInstanceInformation",
+        "InstanceInformationFilterList": [
+          {
+            "key": "InstanceIds",
+            "valueSet": [
+              "{{ getServerUpgradeInstance.InstanceId }}"
+            ]
+          }
+        ]
+      },
+      "outputs": [
+        {
+          "Name": "PingStatus",
+          "Selector": "$.InstanceInformationList[0].PingStatus"
+        }
+      ],
+      "isCritical": "true",
+      "nextStep": "branchOnSSMPingStatus"
+    },
+    {
+      "name": "branchOnSSMPingStatus",
+      "action": "aws:branch",
+      "inputs": {
+        "Choices": [
+          {
+            "NextStep": "getUpgradeServerInstanceDetails",
+            "Variable": "{{ checkForSSMAgent.PingStatus }}",
+            "EqualsIgnoreCase": "ONLINE"
+          }
+        ],
+        "Default": "prepareServerInstanceForSSMInstall"
+      }
+    },
+    {
+      "name": "prepareServerInstanceForSSMInstall",
+      "action": "aws:executeAutomation",
+      "maxAttempts": 3,
+      "timeoutSeconds": 3600,
+      "onFailure": "step:deleteServerUpgradeInstance",
+      "inputs": {
+        "DocumentName": "AWSSupport-StartEC2RescueWorkflow",
+        "RuntimeParameters": {
+          "InstanceId": [
+            "{{ getServerUpgradeInstance.InstanceId }}"
+          ],
+          "OfflineScript": [
+            "JEVDMlNldHRpbmdzRmlsZT0iJHtlbnY6RUMyUkVTQ1VFX09GRkxJTkVfUFJPR1JBTV9GSUxFU19ESVJ9XEFtYXpvblxFYzJDb25maWdTZXJ2aWNlXFNldHRpbmdzXENvbmZpZy54bWwiCndyaXRlLWhvc3QgIkZvdW5kIEVDMiBTZXR0aW5ncyBmaWxlIGluICQoJEVDMlNldHRpbmdzRmlsZSkiCiR4bWwgPSBbeG1sXShnZXQtY29udGVudCAkRUMyU2V0dGluZ3NGaWxlKQokeG1sRWxlbWVudCA9ICR4bWwuZ2V0X0RvY3VtZW50RWxlbWVudCgpCiR4bWxFbGVtZW50VG9Nb2RpZnkgPSAkeG1sRWxlbWVudC5QbHVnaW5zCndyaXRlLWhvc3QgIlNldHRpbmcgQ29uZmlnLnhtbCIKZm9yZWFjaCAoJGVsZW1lbnQgaW4gJHhtbEVsZW1lbnRUb01vZGlmeS5QbHVnaW4pCnsKCXdyaXRlLWhvc3QgIiAkKCRlbGVtZW50Lm5hbWUpIgoJaWYgKCRlbGVtZW50Lm5hbWUgLWVxICJFYzJIYW5kbGVVc2VyRGF0YSIpCgl7CgkJd3JpdGUtaG9zdCAiYWJvdXQgdG8gdXBkYXRlICQoJGVsZW1lbnQubmFtZSkiCgkJJGVsZW1lbnQuU3RhdGU9IkVuYWJsZWQiCgl9CgkJCgl3cml0ZS1ob3N0ICIgICQoJGVsZW1lbnQuU3RhdGUpIgp9CiR4bWwuU2F2ZSgkRUMyU2V0dGluZ3NGaWxlKQ=="
+          ]
+        }
+      },
+      "isCritical": "true",
+      "nextStep": "startServerInstanceWithSSMInstall"
+    },
+    {
+      "name": "startServerInstanceWithSSMInstall",
+      "action": "aws:changeInstanceState",
+      "maxAttempts": 3,
+      "timeoutSeconds": 600,
+      "onFailure": "step:deleteServerUpgradeInstance",
+      "inputs": {
+        "InstanceIds": [
+          "{{ getServerUpgradeInstance.InstanceId }}"
+        ],
+        "CheckStateOnly": false,
+        "DesiredState": "running"
       },
       "isCritical": "true",
       "nextStep": "waitSSMAgentOnlineOnServerUpgradeInstance"
@@ -493,7 +460,102 @@
         }
       ],
       "isCritical": "true",
-      "nextStep": "runScriptBeforeWindowServerUpgrade"
+      "nextStep": "assertSupportedWindowsVersion"
+    },
+    {
+      "name": "assertSupportedWindowsVersion",
+      "action": "aws:runCommand",
+      "maxAttempts": 3,
+      "onFailure": "step:deleteServerUpgradeInstance",
+      "timeoutSeconds": 600,
+      "isCritical": "true",
+      "nextStep": "runScriptBeforeWindowServerUpgrade",
+      "inputs": {
+        "DocumentName": "AWS-RunPowerShellScript",
+        "InstanceIds": [
+          "{{ getServerUpgradeInstance.InstanceId }}"
+        ],
+        "Parameters": {
+          "executionTimeout": "600",
+          "commands": [
+            "function Validate-InstanceLicensing([string]$WindowSnapshotId)\n",
+            " {\n",
+            "    $IsError = $True\n",
+            "    try\n",
+            "    {\n",
+            "       # compatible with PS2.0\n",
+            "        $webrequest = [System.Net.WebRequest]::Create(\"http://169.254.169.254/latest/dynamic/instance-identity/document\")\n",
+            "        $response = $webrequest.GetResponse()\n",
+            "        $stream = $response.GetResponseStream()\n",
+            "        $sr = new-object System.IO.StreamReader($stream)\n",
+            "        $content = $sr.ReadToEnd();\n",
+            "        [System.Reflection.Assembly]::LoadWithPartialName(\"System.Web.Extensions\") | out-null\n",
+            "        $ser = New-Object System.Web.Script.Serialization.JavaScriptSerializer\n",
+            "        $billingProduct = $ser.DeserializeObject($content).billingProducts\n",
+            "        if(($billingProduct -eq \"bp-6ba54002\") -or ($billingProduct -eq \"bp-68a54001\")){\n",
+            "            $IsError = $False\n",
+            "            Write-Host \"Instance has license included\" \n",
+            "        }\n",
+            "        elseif(-not [string]::IsNullOrEmpty($WindowSnapshotId)){\n",
+            "            $IsError = $False\n",
+            "            Write-Host \"Instance will use $WindowSnapshotId for BYOL\" \n",
+            "        }else{\n",
+            "            $IsError = $True\n",
+            "            Write-Host \"Your instance is BYOL, but you did not provide a BYOL Windows installation media snapshot id. Please re-run this automation with the necessary paramaters.\" \n",
+            "        }\n",
+            "    }  \n",
+            "    catch { \n",
+            "        Write-Error $_.Exception.Message\n",
+            "    }\n",
+            "    finally\n",
+            "    {\n",
+            "        if($sr -ne $null) { $sr.Close(); }\n",
+            "        if($response -ne $null) { $response.Close(); }\n",
+            "        if($IsError){\n",
+            "           exit 1\n",
+            "        }\n",
+            "        else{\n",
+            "            exit 0\n",
+            "        }\n",
+            "    }\n",
+            "}\n",
+            "\n",
+            "function Check-OSUpgradeCompatibility\n",
+            "{\n",
+            "      $osInfo = (Get-WmiObject -class Win32_OperatingSystem) \n",
+            "      # ProductType 3 = Server OS – Not a Domain Controller\n",
+            "      if($osInfo.ProductType -ne 3)\n",
+            "      {\n",
+            "            Write-Host \"This upgrade automation is not supported on Domain Controller or Work Station role. \" \n",
+            "            exit 1\n",
+            "      }\n",
+            "      $OSVersion = $osInfo.Caption.ToUpper() \n",
+            "      if($OSVersion.indexOf(\"2008 R2\") -ge 0 -and (($OSVersion.indexOf(\"STANDARD\") -ge 0) -or ($OSVersion.indexOf(\"DATACENTER\") -ge 0))) \n",
+            "      { \n",
+            "            Write-Host \"OSVersion : $OSVersion \" \n",
+            "      } \n",
+            "       else \n",
+            "       {  \n",
+            "            Write-Host 'This upgrade automation only supports Windows 2008 R2 Standard or Datacenter edition.' \n",
+            "            exit 1 \n",
+            "      } \n",
+            "     $Space = (Get-WMIObject Win32_Logicaldisk -filter \"deviceid='$($osInfo.systemdrive)'\").FreeSpace\n",
+            "     $AvailableGBSpace = [math]::floor($Space/1GB)\n",
+            "     if ($AvailableGBSpace -le 20 )\n",
+            "     {\n",
+            "     Write-Host \"Not enough space to continue upgrade. Avilable space $AvailableGBSpace GB, minimum required is 20 GB\"\n",
+            "     exit 1\n",
+            "     }\n",
+            "     \n",
+            "      \n",
+            "}\n",
+            "\n",
+            "Check-OSUpgradeCompatibility \n",
+            "$WindowSnapShotId = \"{{ BYOLWindowsMediaSnapshotId }}\" \n",
+            "Validate-InstanceLicensing($WindowSnapShotId) \n"
+          ]
+        }
+      }
     },
     {
       "name": "runScriptBeforeWindowServerUpgrade",
@@ -620,17 +682,59 @@
                 "StringEquals": "{{ getAmazonOwnedWindowsServerSnapShotId.SnapShotId }}"
               }
             ],
-            "NextStep": "assertFailBecauseSameSnapshotOwnedByAmazon"
+            "NextStep": "putBYOLOwnedByAmazonMetric"
           },
           {
-            "NextStep": "useCustomerWindowMediaSnapshotToCreateVolume",
+            "NextStep": "putBYOLInstanceMetric",
             "Variable": "{{ assertSupportedWindowsVersion.Output }}",
             "Contains": "BYOL"
           }
         ],
-        "Default": "useAmazonProvidedWindowMediaSnapshotToCreateVolume"
+        "Default": "putLicenseIncludedInstanceMetric"
       },
       "isCritical": "true"
+    },
+    {
+      "name": "putBYOLInstanceMetric",
+      "action": "aws:putServerUpgradeMetrics",
+      "maxAttempts": 3,
+      "onFailure": "step:deleteServerUpgradeInstance",
+      "inputs": {
+        "DimensionName": "SSM_METRICS",
+        "DimensionValue": "AWSEC2-CloneInstanceAndUpgradeWindows",
+        "MetricName": "BYOL_Instances",
+        "MetricValue": "1.0"
+      },
+      "isCritical": "true",
+      "nextStep": "useCustomerWindowMediaSnapshotToCreateVolume"
+    },
+    {
+      "name": "putBYOLOwnedByAmazonMetric",
+      "action": "aws:putServerUpgradeMetrics",
+      "maxAttempts": 3,
+      "onFailure": "step:deleteServerUpgradeInstance",
+      "inputs": {
+        "DimensionName": "SSM_METRICS",
+        "DimensionValue": "AWSEC2-CloneInstanceAndUpgradeWindows",
+        "MetricName": "BYOL_Owned_By_Amazon_Failures",
+        "MetricValue": "1.0"
+      },
+      "isCritical": "true",
+      "nextStep": "assertFailBecauseSameSnapshotOwnedByAmazon"
+    },
+    {
+      "name": "putLicenseIncludedInstanceMetric",
+      "action": "aws:putServerUpgradeMetrics",
+      "maxAttempts": 3,
+      "onFailure": "step:deleteServerUpgradeInstance",
+      "inputs": {
+        "DimensionName": "SSM_METRICS",
+        "DimensionValue": "AWSEC2-CloneInstanceAndUpgradeWindows",
+        "MetricName": "License_Included_Instances",
+        "MetricValue": "1.0"
+      },
+      "isCritical": "true",
+      "nextStep": "useAmazonProvidedWindowMediaSnapshotToCreateVolume"
     },
     {
       "name": "assertFailBecauseSameSnapshotOwnedByAmazon",
@@ -1074,11 +1178,11 @@
       },
       "isCritical": "false",
       "onFailure": "step:deleteServerUpgradeInstance",
-      "nextStep": "checkAfterUpgrade"
+      "nextStep": "checkAfterWindowsUpgrade"
     },
     {
       "action": "aws:runCommand",
-      "name": "checkAfterUpgrade",
+      "name": "checkAfterWindowsUpgrade",
       "onFailure": "step:deleteServerUpgradeInstance",
       "maxAttempts": 3,
       "inputs": {
@@ -1194,6 +1298,51 @@
             " \n"
           ]
         }
+      },
+      "isCritical": "true",
+      "nextStep": "branchOnWindowsUpgradeSuccess"
+    },
+    {
+      "name": "branchOnWindowsUpgradeSuccess",
+      "action": "aws:branch",
+      "maxAttempts": 3,
+      "onFailure": "step:deleteServerUpgradeInstance",
+      "inputs": {
+        "Choices": [
+          {
+            "Variable": "{{ checkAfterWindowsUpgrade.Output }}",
+            "Contains": "Error: Upgrade failed",
+            "NextStep": "putWindowsUpgradeFailureMetric"
+          }
+        ],
+        "Default": "putWindowsUpgradeSuccessMetric"
+      },
+      "isCritical": "true"
+    },
+    {
+      "name": "putWindowsUpgradeFailureMetric",
+      "action": "aws:putServerUpgradeMetrics",
+      "maxAttempts": 3,
+      "onFailure": "step:deleteServerUpgradeInstance",
+      "inputs": {
+        "DimensionName": "SSM_METRICS",
+        "DimensionValue": "AWSEC2-CloneInstanceAndUpgradeWindows",
+        "MetricName": "Failed_Upgrades",
+        "MetricValue": "1.0"
+      },
+      "isCritical": "true",
+      "nextStep": "deleteServerUpgradeInstance"
+    },
+    {
+      "name": "putWindowsUpgradeSuccessMetric",
+      "action": "aws:putServerUpgradeMetrics",
+      "maxAttempts": 3,
+      "onFailure": "step:deleteServerUpgradeInstance",
+      "inputs": {
+        "DimensionName": "SSM_METRICS",
+        "DimensionValue": "AWSEC2-CloneInstanceAndUpgradeWindows",
+        "MetricName": "Successful_Upgrades",
+        "MetricValue": "1.0"
       },
       "isCritical": "true",
       "nextStep": "branchOnLicensingTypeToActivateLicense"

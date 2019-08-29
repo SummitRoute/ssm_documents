@@ -68,7 +68,7 @@
       "properties": [
         {
           "id": "0.aws:runPowerShellScript",
-          "timeoutSeconds": 14400,
+          "timeoutSeconds": "14400",
           "runCommand": [
             "",
             "$zipFilename = 'AWSUpdateWindowsInstance_1_4_4_0.zip'",

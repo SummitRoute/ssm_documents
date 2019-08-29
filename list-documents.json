@@ -1,1347 +1,1390 @@
 {
     "DocumentIdentifiers": [
         {
-            "TargetType": "/AWS::EC2::Instance", 
-            "Name": "AWS-ASGEnterStandby", 
-            "Tags": [], 
+            "Name": "AWS-ASGEnterStandby",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::EC2::Instance",
+            "Tags": []
+        },
         {
-            "TargetType": "/AWS::EC2::Instance", 
-            "Name": "AWS-ASGExitStandby", 
-            "Tags": [], 
+            "Name": "AWS-ASGExitStandby",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::EC2::Instance",
+            "Tags": []
+        },
         {
-            "Name": "AWS-ApplyDSCMofs", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "2.2", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "Name": "AWS-ApplyPatchBaseline", 
-            "Tags": [], 
+            "Name": "AWS-ApplyDSCMofs",
+            "Owner": "Amazon",
             "PlatformTypes": [
                 "Windows"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "1.2", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "2.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AWS-AttachEBSVolume", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "TargetType": "/AWS::EC2::Instance", 
-            "Name": "AWS-AttachIAMToInstance", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "Name": "AWS-ConfigureAWSPackage", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "2.0", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "Name": "AWS-ConfigureCloudWatch", 
-            "Tags": [], 
+            "Name": "AWS-ApplyPatchBaseline",
+            "Owner": "Amazon",
             "PlatformTypes": [
                 "Windows"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "1.2", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "1.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "TargetType": "/AWS::EC2::Instance", 
-            "Name": "AWS-ConfigureCloudWatchOnEC2Instance", 
-            "Tags": [], 
+            "Name": "AWS-AttachEBSVolume",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AWS-ConfigureDocker", 
-            "Tags": [], 
+            "Name": "AWS-AttachIAMToInstance",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "2.0", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "YAML",
+            "TargetType": "/AWS::EC2::Instance",
+            "Tags": []
+        },
         {
-            "TargetType": "/AWS::S3::Bucket", 
-            "Name": "AWS-ConfigureS3BucketLogging", 
-            "Tags": [], 
+            "Name": "AWS-ConfigureAWSPackage",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "YAML"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "2.0",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "TargetType": "/AWS::S3::Bucket", 
-            "Name": "AWS-ConfigureS3BucketVersioning", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "YAML"
-        }, 
-        {
-            "Name": "AWS-ConfigureWindowsUpdate", 
-            "Tags": [], 
+            "Name": "AWS-ConfigureCloudWatch",
+            "Owner": "Amazon",
             "PlatformTypes": [
                 "Windows"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "1.2", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "1.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "TargetType": "/AWS::EC2::Snapshot", 
-            "Name": "AWS-CopySnapshot", 
-            "Tags": [], 
+            "Name": "AWS-ConfigureCloudWatchOnEC2Instance",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::EC2::Instance",
+            "Tags": []
+        },
         {
-            "Name": "AWS-CreateDynamoDbBackup", 
-            "Tags": [], 
+            "Name": "AWS-ConfigureDocker",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "2.0",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "TargetType": "/AWS::EC2::Instance", 
-            "Name": "AWS-CreateImage", 
-            "Tags": [], 
+            "Name": "AWS-ConfigureS3BucketLogging",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "YAML",
+            "TargetType": "/AWS::S3::Bucket",
+            "Tags": []
+        },
         {
-            "Name": "AWS-CreateJiraIssue", 
-            "Tags": [], 
+            "Name": "AWS-ConfigureS3BucketVersioning",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "YAML",
+            "TargetType": "/AWS::S3::Bucket",
+            "Tags": []
+        },
         {
-            "Name": "AWS-CreateManagedLinuxInstance", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "Name": "AWS-CreateManagedLinuxInstanceWithApproval", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "Name": "AWS-CreateManagedWindowsInstance", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "Name": "AWS-CreateManagedWindowsInstanceWithApproval", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "TargetType": "/AWS::EC2::Volume", 
-            "Name": "AWS-CreateSnapshot", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "YAML"
-        }, 
-        {
-            "TargetType": "/AWS::CloudFormation::Stack", 
-            "Name": "AWS-DeleteCloudFormationStack", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "TargetType": "/AWS::CloudFormation::Stack", 
-            "Name": "AWS-DeleteCloudFormationStackWithApproval", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "Name": "AWS-DeleteDynamoDbBackup", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "YAML"
-        }, 
-        {
-            "Name": "AWS-DeleteDynamoDbTableBackups", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "TargetType": "/AWS::EC2::Volume", 
-            "Name": "AWS-DeleteEbsVolumeSnapshots", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "Name": "AWS-DeleteImage", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "TargetType": "/AWS::EC2::Snapshot", 
-            "Name": "AWS-DeleteSnapshot", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "YAML"
-        }, 
-        {
-            "TargetType": "/AWS::EC2::Volume", 
-            "Name": "AWS-DetachEBSVolume", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "TargetType": "/AWS::EC2::SecurityGroup", 
-            "Name": "AWS-DisablePublicAccessForSecurityGroup", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "YAML"
-        }, 
-        {
-            "TargetType": "/AWS::S3::Bucket", 
-            "Name": "AWS-DisableS3BucketPublicReadWrite", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "YAML"
-        }, 
-        {
-            "Name": "AWS-EnableCloudTrail", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "YAML"
-        }, 
-        {
-            "TargetType": "/AWS::S3::Bucket", 
-            "Name": "AWS-EnableS3BucketEncryption", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "YAML"
-        }, 
-        {
-            "Name": "AWS-FindWindowsUpdates", 
-            "Tags": [], 
+            "Name": "AWS-ConfigureWindowsUpdate",
+            "Owner": "Amazon",
             "PlatformTypes": [
                 "Windows"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "1.2", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "1.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AWS-GatherSoftwareInventory", 
-            "Tags": [], 
+            "Name": "AWS-CopySnapshot",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Policy", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "2.0", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::EC2::Snapshot",
+            "Tags": []
+        },
         {
-            "Name": "AWS-InstallApplication", 
-            "Tags": [], 
+            "Name": "AWS-CreateDynamoDbBackup",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-CreateImage",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::EC2::Instance",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-CreateJiraIssue",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-CreateManagedLinuxInstance",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::EC2::Instance",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-CreateManagedLinuxInstanceWithApproval",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::EC2::Instance",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-CreateManagedWindowsInstance",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::EC2::Instance",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-CreateManagedWindowsInstanceWithApproval",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::EC2::Instance",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-CreateSnapshot",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "YAML",
+            "TargetType": "/AWS::EC2::Volume",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-DeleteCloudFormationStack",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::CloudFormation::Stack",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-DeleteCloudFormationStackWithApproval",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::CloudFormation::Stack",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-DeleteDynamoDbBackup",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "YAML",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-DeleteDynamoDbTableBackups",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-DeleteEbsVolumeSnapshots",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::EC2::Volume",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-DeleteImage",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-DeleteSnapshot",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "YAML",
+            "TargetType": "/AWS::EC2::Snapshot",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-DetachEBSVolume",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::EC2::Volume",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-DisablePublicAccessForSecurityGroup",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "YAML",
+            "TargetType": "/AWS::EC2::SecurityGroup",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-DisableS3BucketPublicReadWrite",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "YAML",
+            "TargetType": "/AWS::S3::Bucket",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-EnableCloudTrail",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "YAML",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-EnableS3BucketEncryption",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "YAML",
+            "TargetType": "/AWS::S3::Bucket",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-FindWindowsUpdates",
+            "Owner": "Amazon",
             "PlatformTypes": [
                 "Windows"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "1.2", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "1.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AWS-InstallMissingWindowsUpdates", 
-            "Tags": [], 
+            "Name": "AWS-GatherSoftwareInventory",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Policy",
+            "SchemaVersion": "2.0",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-InstallApplication",
+            "Owner": "Amazon",
             "PlatformTypes": [
                 "Windows"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "1.2", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "1.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AWS-InstallPowerShellModule", 
-            "Tags": [], 
+            "Name": "AWS-InstallMissingWindowsUpdates",
+            "Owner": "Amazon",
             "PlatformTypes": [
                 "Windows"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "1.2", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "1.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AWS-InstallSpecificWindowsUpdates", 
-            "Tags": [], 
+            "Name": "AWS-InstallPowerShellModule",
+            "Owner": "Amazon",
             "PlatformTypes": [
                 "Windows"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "1.2", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "1.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AWS-InstallWindowsUpdates", 
-            "Tags": [], 
+            "Name": "AWS-InstallSpecificWindowsUpdates",
+            "Owner": "Amazon",
             "PlatformTypes": [
                 "Windows"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "1.2", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "1.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AWS-JoinDirectoryServiceDomain", 
-            "Tags": [], 
+            "Name": "AWS-InstallWindowsUpdates",
+            "Owner": "Amazon",
             "PlatformTypes": [
                 "Windows"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "1.2", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "1.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AWS-ListWindowsInventory", 
-            "Tags": [], 
+            "Name": "AWS-JoinDirectoryServiceDomain",
+            "Owner": "Amazon",
             "PlatformTypes": [
                 "Windows"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "1.2", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "1.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "TargetType": "/AWS::EC2::Instance", 
-            "Name": "AWS-PatchAsgInstance", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "TargetType": "/AWS::EC2::Instance", 
-            "Name": "AWS-PatchInstanceWithRollback", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "TargetType": "/AWS::SNS::Topic", 
-            "Name": "AWS-PublishSNSNotification", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "YAML"
-        }, 
-        {
-            "TargetType": "/AWS::RDS::DBInstance", 
-            "Name": "AWS-RebootRdsInstance", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "YAML"
-        }, 
-        {
-            "Name": "AWS-RefreshAssociation", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "2.0", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "TargetType": "/AWS::EC2::EIP", 
-            "Name": "AWS-ReleaseElasticIP", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "YAML"
-        }, 
-        {
-            "TargetType": "/AWS::EC2::Instance", 
-            "Name": "AWS-ResizeInstance", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "YAML"
-        }, 
-        {
-            "TargetType": "/AWS::EC2::Instance", 
-            "Name": "AWS-RestartEC2Instance", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "TargetType": "/AWS::EC2::Instance", 
-            "Name": "AWS-RestartEC2InstanceWithApproval", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "Name": "AWS-RunAnsiblePlaybook", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "2.0", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "Name": "AWS-RunDockerAction", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "2.0", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "Name": "AWS-RunDocument", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "2.2", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "Name": "AWS-RunInspecChecks", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "2.2", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "Name": "AWS-RunPatchBaseline", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "2.2", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "Name": "AWS-RunPowerShellScript", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "1.2", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "Name": "AWS-RunRemoteScript", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "2.2", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "Name": "AWS-RunSaltState", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "2.0", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "Name": "AWS-RunShellScript", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "1.2", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "TargetType": "/AWS::EC2::Instance", 
-            "Name": "AWS-SetupInventory", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "TargetType": "/AWS::EC2::Instance", 
-            "Name": "AWS-SetupManagedInstance", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "TargetType": "/AWS::EC2::Instance", 
-            "Name": "AWS-SetupManagedRoleOnEc2Instance", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "TargetType": "/AWS::EC2::Instance", 
-            "Name": "AWS-StartEC2Instance", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "TargetType": "/AWS::EC2::Instance", 
-            "Name": "AWS-StartEC2InstanceWithApproval", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "TargetType": "/AWS::RDS::DBInstance", 
-            "Name": "AWS-StartRdsInstance", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "YAML"
-        }, 
-        {
-            "TargetType": "/AWS::EC2::Instance", 
-            "Name": "AWS-StopEC2Instance", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "TargetType": "/AWS::EC2::Instance", 
-            "Name": "AWS-StopEC2InstanceWithApproval", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "TargetType": "/AWS::RDS::DBInstance", 
-            "Name": "AWS-StopRdsInstance", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "YAML"
-        }, 
-        {
-            "TargetType": "/AWS::EC2::Instance", 
-            "Name": "AWS-TerminateEC2Instance", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "TargetType": "/AWS::EC2::Instance", 
-            "Name": "AWS-TerminateEC2InstanceWithApproval", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "TargetType": "/AWS::CloudFormation::Stack", 
-            "Name": "AWS-UpdateCloudFormationStack", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "TargetType": "/AWS::CloudFormation::Stack", 
-            "Name": "AWS-UpdateCloudFormationStackWithApproval", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "Name": "AWS-UpdateEC2Config", 
-            "Tags": [], 
+            "Name": "AWS-ListWindowsInventory",
+            "Owner": "Amazon",
             "PlatformTypes": [
                 "Windows"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "1.2", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "1.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AWS-UpdateLinuxAmi", 
-            "Tags": [], 
+            "Name": "AWS-PasswordReset",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Session",
+            "SchemaVersion": "1.0",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AWS-UpdateSSMAgent", 
-            "Tags": [], 
+            "Name": "AWS-PatchAsgInstance",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "1.2", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::EC2::Instance",
+            "Tags": []
+        },
         {
-            "Name": "AWS-UpdateWindowsAmi", 
-            "Tags": [], 
+            "Name": "AWS-PatchInstanceWithRollback",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::EC2::Instance",
+            "Tags": []
+        },
         {
-            "Name": "AWSSupport-ActivateWindowsWithAmazonLicense", 
-            "Tags": [], 
+            "Name": "AWS-PublishSNSNotification",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "5", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "YAML",
+            "TargetType": "/AWS::SNS::Topic",
+            "Tags": []
+        },
         {
-            "Name": "AWSSupport-ExecuteEC2Rescue", 
-            "Tags": [], 
+            "Name": "AWS-RebootRdsInstance",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "13", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "YAML",
+            "TargetType": "/AWS::RDS::DBInstance",
+            "Tags": []
+        },
         {
-            "Name": "AWSSupport-GrantPermissionsToIAMUser", 
-            "Tags": [], 
+            "Name": "AWS-RefreshAssociation",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "4", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "2.0",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AWSSupport-ManageRDPSettings", 
-            "Tags": [], 
+            "Name": "AWS-ReleaseElasticIP",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "2", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "YAML",
+            "TargetType": "/AWS::EC2::EIP",
+            "Tags": []
+        },
         {
-            "Name": "AWSSupport-ManageWindowsService", 
-            "Tags": [], 
+            "Name": "AWS-ResizeInstance",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "2", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "YAML",
+            "TargetType": "/AWS::EC2::Instance",
+            "Tags": []
+        },
         {
-            "Name": "AWSSupport-ResetAccess", 
-            "Tags": [], 
+            "Name": "AWS-RestartEC2Instance",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "10", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::EC2::Instance",
+            "Tags": []
+        },
         {
-            "Name": "AWSSupport-RunEC2RescueForWindowsTool", 
-            "Tags": [], 
+            "Name": "AWS-RestartEC2InstanceWithApproval",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::EC2::Instance",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-RunAnsiblePlaybook",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "2.0",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-RunDockerAction",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "2.0",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-RunDocument",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "2.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-RunInspecChecks",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "2.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-RunPatchBaseline",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "2.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-RunPowerShellScript",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "1.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-RunRemoteScript",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "2.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-RunSaltState",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "2.0",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-RunShellScript",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "1.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-SetupInventory",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::EC2::Instance",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-SetupManagedInstance",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::EC2::Instance",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-SetupManagedRoleOnEc2Instance",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::EC2::Instance",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-StartEC2Instance",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::EC2::Instance",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-StartEC2InstanceWithApproval",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::EC2::Instance",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-StartPortForwardingSession",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Session",
+            "SchemaVersion": "1.0",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-StartRdsInstance",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "YAML",
+            "TargetType": "/AWS::RDS::DBInstance",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-StartSSHSession",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Session",
+            "SchemaVersion": "1.0",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-StopEC2Instance",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::EC2::Instance",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-StopEC2InstanceWithApproval",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::EC2::Instance",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-StopRdsInstance",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "YAML",
+            "TargetType": "/AWS::RDS::DBInstance",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-TerminateEC2Instance",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::EC2::Instance",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-TerminateEC2InstanceWithApproval",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::EC2::Instance",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-UpdateCloudFormationStack",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::CloudFormation::Stack",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-UpdateCloudFormationStackWithApproval",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "TargetType": "/AWS::CloudFormation::Stack",
+            "Tags": []
+        },
+        {
+            "Name": "AWS-UpdateEC2Config",
+            "Owner": "Amazon",
             "PlatformTypes": [
                 "Windows"
-            ], 
-            "DocumentVersion": "13", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "2.2", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "1.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AWSSupport-SendLogBundleToS3Bucket", 
-            "Tags": [], 
+            "Name": "AWS-UpdateLinuxAmi",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "4", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AWSSupport-SetupIPMonitoringFromVPC", 
-            "Tags": [], 
+            "Name": "AWS-UpdateSSMAgent",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Command",
+            "SchemaVersion": "1.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AWSSupport-StartEC2RescueWorkflow", 
-            "Tags": [], 
+            "Name": "AWS-UpdateWindowsAmi",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "6", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AWSSupport-TerminateIPMonitoringFromVPC", 
-            "Tags": [], 
+            "Name": "AWSSupport-ActivateWindowsWithAmazonLicense",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "5",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AWSSupport-TroubleshootRDP", 
-            "Tags": [], 
+            "Name": "AWSSupport-ExecuteEC2Rescue",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "3", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "13",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AWSSupport-TroubleshootSSH", 
-            "Tags": [], 
+            "Name": "AWSSupport-GrantPermissionsToIAMUser",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "2", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "4",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AWSSupport-UpgradeWindowsAWSDrivers", 
-            "Tags": [], 
+            "Name": "AWSSupport-ManageRDPSettings",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "6", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "2",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AmazonInspector-ManageAWSAgent", 
-            "Tags": [], 
+            "Name": "AWSSupport-ManageWindowsService",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "7", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "2.2", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "2",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AWSEC2-ApplicationInsightsCloudwatchAgentInstallAndConfigure", 
-            "Tags": [], 
+            "Name": "AWSSupport-ResetAccess",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "2", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "2.2", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "10",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AWSEC2-CloneInstanceAndUpgradeSQLServer", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "8", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "Name": "AWSEC2-CloneInstanceAndUpgradeWindows", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
-                "Linux"
-            ], 
-            "DocumentVersion": "8", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "Name": "AWSEC2-CreateVssSnapshot", 
-            "Tags": [], 
+            "Name": "AWSSupport-RunEC2RescueForWindowsTool",
+            "Owner": "Amazon",
             "PlatformTypes": [
                 "Windows"
-            ], 
-            "DocumentVersion": "5", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "2.2", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "13",
+            "DocumentType": "Command",
+            "SchemaVersion": "2.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AWSEC2-ManageVssIO", 
-            "Tags": [], 
+            "Name": "AWSSupport-SendLogBundleToS3Bucket",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows"
-            ], 
-            "DocumentVersion": "4", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "2.2", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "Name": "AWSEC2-RunSysprep", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows"
-            ], 
-            "DocumentVersion": "4", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "2.2", 
-            "DocumentFormat": "JSON"
-        }, 
-        {
-            "Name": "AWSEC2-SQLServerDBRestore", 
-            "Tags": [], 
-            "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "1", 
-            "DocumentType": "Automation", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "0.3", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "4",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AmazonCloudWatch-ManageAgent", 
-            "Tags": [], 
+            "Name": "AWSSupport-SetupIPMonitoringFromVPC",
+            "Owner": "Amazon",
             "PlatformTypes": [
-                "Windows", 
+                "Windows",
                 "Linux"
-            ], 
-            "DocumentVersion": "4", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "2.2", 
-            "DocumentFormat": "JSON"
-        }, 
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
         {
-            "Name": "AmazonCloudWatch-MigrateCloudWatchAgent", 
-            "Tags": [], 
+            "Name": "AWSSupport-StartEC2RescueWorkflow",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "6",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWSSupport-TerminateIPMonitoringFromVPC",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "1",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWSSupport-TroubleshootRDP",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "3",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWSSupport-TroubleshootSSH",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "2",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWSSupport-UpgradeWindowsAWSDrivers",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "6",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AmazonInspector-ManageAWSAgent",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "10",
+            "DocumentType": "Command",
+            "SchemaVersion": "2.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWSEC2-ApplicationInsightsCloudwatchAgentInstallAndConfigure",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "2",
+            "DocumentType": "Command",
+            "SchemaVersion": "2.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWSEC2-CloneInstanceAndUpgradeSQLServer",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "9",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWSEC2-CloneInstanceAndUpgradeWindows",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "11",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWSEC2-CreateVssSnapshot",
+            "Owner": "Amazon",
             "PlatformTypes": [
                 "Windows"
-            ], 
-            "DocumentVersion": "2", 
-            "DocumentType": "Command", 
-            "Owner": "Amazon", 
-            "SchemaVersion": "2.2", 
-            "DocumentFormat": "JSON"
+            ],
+            "DocumentVersion": "5",
+            "DocumentType": "Command",
+            "SchemaVersion": "2.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWSEC2-ManageVssIO",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows"
+            ],
+            "DocumentVersion": "4",
+            "DocumentType": "Command",
+            "SchemaVersion": "2.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWSEC2-RunSysprep",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows"
+            ],
+            "DocumentVersion": "4",
+            "DocumentType": "Command",
+            "SchemaVersion": "2.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AWSEC2-SQLServerDBRestore",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "2",
+            "DocumentType": "Automation",
+            "SchemaVersion": "0.3",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AmazonCloudWatch-ManageAgent",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows",
+                "Linux"
+            ],
+            "DocumentVersion": "4",
+            "DocumentType": "Command",
+            "SchemaVersion": "2.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
+        },
+        {
+            "Name": "AmazonCloudWatch-MigrateCloudWatchAgent",
+            "Owner": "Amazon",
+            "PlatformTypes": [
+                "Windows"
+            ],
+            "DocumentVersion": "2",
+            "DocumentType": "Command",
+            "SchemaVersion": "2.2",
+            "DocumentFormat": "JSON",
+            "Tags": []
         }
     ]
 }

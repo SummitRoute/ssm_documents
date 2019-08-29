@@ -69,10 +69,38 @@
     "DatabaseNames": {
       "type": "String",
       "description": "(Optional) Comma-separated list of the names of the databases to be restored. If no names are provided, all databases present in the backup files will be restored.",
-      "default": ""
+      "default": "''"
+    },
+    "TargetOperatingSystem": {
+      "type": "String",
+      "description": "(Optional) The operating system of the target EC2 instance to be restored to.",
+      "default": "Linux",
+      "allowedValues": [
+        "Linux",
+        "Windows"
+      ]
     }
   },
   "mainSteps": [
+    {
+      "name": "checkTargetOperatingSystem",
+      "action": "aws:branch",
+      "onFailure": "Abort",
+      "inputs": {
+        "Choices": [
+          {
+            "Variable": "{{ TargetOperatingSystem }}",
+            "StringEquals": "Linux",
+            "NextStep": "doesInstanceNeedToBeCreated"
+          },
+          {
+            "Variable": "{{ TargetOperatingSystem }}",
+            "StringEquals": "Windows",
+            "NextStep": "doesInstanceNeedToBeCreatedWindows"
+          }
+        ]
+      }
+    },
     {
       "name": "doesInstanceNeedToBeCreated",
       "action": "aws:branch",
@@ -87,7 +115,7 @@
           {
             "Variable": "{{ InstanceId }}",
             "StartsWith": "mi-",
-            "NextStep": "restoreToExistingManagedInstance"
+            "NextStep": "restoreToExistingManagedLinuxInstance"
           }
         ],
         "Default": "getUbuntuAMI"
@@ -320,7 +348,7 @@
         ]
       },
       "isCritical": "false",
-      "nextStep": "assertSSMAgentOnInstance"
+      "nextStep": "waitForSSMAgentOnline"
     },
     {
       "name": "rebootToMakeItReady",
@@ -353,11 +381,12 @@
         ]
       },
       "isCritical": "true",
-      "nextStep": "assertSSMAgentOnInstance"
+      "nextStep": "waitForSSMAgentOnline"
     },
     {
-      "name": "assertSSMAgentOnInstance",
-      "action": "aws:assertAwsResourceProperty",
+      "name": "waitForSSMAgentOnline",
+      "action": "aws:waitForAwsResourceProperty",
+      "timeoutSeconds": 600,
       "inputs": {
         "Service": "ssm",
         "Api": "DescribeInstanceInformation",
@@ -375,7 +404,7 @@
         ]
       },
       "isCritical": "true",
-      "nextStep": "doesInstanceNeedToBeConfigured"
+      "nextStep": "branchOnTargetOperatingSystem"
     },
     {
       "name": "doesInstanceNeedToBeConfigured",
@@ -388,15 +417,16 @@
               "Variable": "{{ InstanceId }}",
               "EqualsIgnoreCase": ""
             },
-            "NextStep": "restoreToExistingEC2Instance"
+            "NextStep": "restoreToExistingEC2InstanceLinux"
           }
         ],
-        "Default": "restoreToNewInstance"
+        "Default": "restoreToNewInstanceLinux"
       }
     },
     {
-      "name": "restoreToNewInstance",
+      "name": "restoreToNewInstanceLinux",
       "action": "aws:runCommand",
+      "timeoutSeconds": 18000,
       "inputs": {
         "DocumentName": "AWS-RunPowerShellScript",
         "InstanceIds": [
@@ -408,20 +438,23 @@
             "cd SQLServerReplatform",
             "$currentDirectory = $(Get-Location).Path",
             "Write-Host SSM current directory: $currentDirectory",
+            "Write-Host To view restore logs, go to: $currentDirectory/logs/{{automation:EXECUTION_ID}}/log.txt",
             "New-Item -Name Scripts -ItemType directory",
-            "[void](wget -P $currentDirectory/Scripts https://s3-us-west-1.amazonaws.com/awsec2-server-upgrade-prod/SQLServerRestore.zip)",
+            "[void](wget -P $currentDirectory/Scripts https://s3-us-west-1.amazonaws.com/awsec2-server-upgrade-prod/SQLServerRestore.zip -q)",
             "Expand-Archive -Path $currentDirectory/Scripts/SQLServerRestore.zip -DestinationPath $currentDirectory/Scripts",
             "$smoDirectory = $currentDirectory+'/Scripts/SMODLL'",
             "./Scripts/SQLServerRestore.ps1 -S3Input \"{{ S3Input }}\" -IsS3PresignedURL {{IsS3PresignedURL}} -InstanceIsNew $true -RunningDirectory $currentDirectory -DatabaseNames \"{{ DatabaseNames }}\" -ExecutionId {{automation:EXECUTION_ID}} -SmodllPath $smoDirectory",
             "rm -r $currentDirectory/Scripts"
-          ]
+          ],
+          "executionTimeout": "18000"
         }
       },
       "isEnd": "true"
     },
     {
-      "name": "restoreToExistingEC2Instance",
+      "name": "restoreToExistingEC2InstanceLinux",
       "action": "aws:runCommand",
+      "timeoutSeconds": 18000,
       "inputs": {
         "DocumentName": "AWS-RunPowerShellScript",
         "InstanceIds": [
@@ -433,21 +466,24 @@
             "cd SQLServerReplatform",
             "$currentDirectory = $(Get-Location).Path",
             "Write-Host SSM current directory: $currentDirectory",
+            "Write-Host To view restore logs, go to: $currentDirectory/logs/{{automation:EXECUTION_ID}}/log.txt",
             "if ($(Test-Path Scripts) -eq $True) { rm -r Scripts }",
             "New-Item -Name Scripts -ItemType directory",
-            "[void](wget -P $currentDirectory/Scripts https://s3-us-west-1.amazonaws.com/awsec2-server-upgrade-prod/SQLServerRestore.zip)",
+            "[void](wget -P $currentDirectory/Scripts https://s3-us-west-1.amazonaws.com/awsec2-server-upgrade-prod/SQLServerRestore.zip -q)",
             "Expand-Archive -Path $currentDirectory/Scripts/SQLServerRestore.zip -DestinationPath $currentDirectory/Scripts",
             "$smoDirectory = $currentDirectory+'/Scripts/SMODLL'",
             "./Scripts/SQLServerRestore.ps1 -S3Input \"{{ S3Input }}\" -IsS3PresignedURL {{IsS3PresignedURL}} -InstanceIsNew $false -RunningDirectory $currentDirectory -DatabaseNames \"{{ DatabaseNames }}\" -ExecutionId {{automation:EXECUTION_ID}} -SmodllPath $smoDirectory",
             "rm -r $currentDirectory/Scripts"
-          ]
+          ],
+          "executionTimeout": "18000"
         }
       },
       "isEnd": "true"
     },
     {
-      "name": "restoreToExistingManagedInstance",
+      "name": "restoreToExistingManagedLinuxInstance",
       "action": "aws:runCommand",
+      "timeoutSeconds": 18000,
       "inputs": {
         "DocumentName": "AWS-RunShellScript",
         "InstanceIds": [
@@ -456,9 +492,247 @@
         "Parameters": {
           "commands": [
             "wget https://s3-us-west-1.amazonaws.com/awsec2-server-upgrade-prod/ManagedInstanceSQLServerRestoreWrapper.ps1",
-            "sudo pwsh ./ManagedInstanceSQLServerRestoreWrapper.ps1 -S3Input \"{{ S3Input }}\" -IsS3PresignedURL {{IsS3PresignedURL}} -DatabaseNames \"{{ DatabaseNames }}\" -ExecutionId {{automation:EXECUTION_ID}}",
+            "sudo pwsh ./ManagedInstanceSQLServerRestoreWrapper.ps1 -S3Input {{ S3Input }} -IsS3PresignedURL {{ IsS3PresignedURL }} -DatabaseNames {{ DatabaseNames }} -ExecutionId {{ automation:EXECUTION_ID }}",
             "rm -r ManagedInstanceSQLServerRestoreWrapper.ps1"
-          ]
+          ],
+          "executionTimeout": "18000"
+        }
+      },
+      "isEnd": "true"
+    },
+    {
+      "name": "doesInstanceNeedToBeCreatedWindows",
+      "action": "aws:branch",
+      "onFailure": "Abort",
+      "inputs": {
+        "Choices": [
+          {
+            "Not": {
+              "Variable": "{{ InstanceId }}",
+              "StringEquals": ""
+            },
+            "NextStep": "tagExistingInstance"
+          }
+        ],
+        "Default": "getAMIWindows"
+      }
+    },
+    {
+      "name": "getAMIWindows",
+      "action": "aws:executeAwsApi",
+      "onFailure": "Abort",
+      "inputs": {
+        "Service": "ec2",
+        "Api": "DescribeImages",
+        "Owners": [
+          "amazon"
+        ],
+        "Filters": [
+          {
+            "Name": "name",
+            "Values": [
+              "Windows_Server-2019-English-Full-SQL_2017_{{ SQLServerEdition }}-2019.05.15"
+            ]
+          },
+          {
+            "Name": "state",
+            "Values": [
+              "available"
+            ]
+          }
+        ]
+      },
+      "outputs": [
+        {
+          "Name": "amiId",
+          "Selector": "$.Images[0].ImageId",
+          "Type": "String"
+        }
+      ],
+      "isCritical": "true",
+      "nextStep": "branchOnWhetherKeyPairExistsWindows"
+    },
+    {
+      "name": "branchOnWhetherKeyPairExistsWindows",
+      "action": "aws:branch",
+      "onFailure": "Abort",
+      "inputs": {
+        "Choices": [
+          {
+            "Not": {
+              "Variable": "{{ KeyPair }}",
+              "EqualsIgnoreCase": ""
+            },
+            "NextStep": "createNewInstanceWithKeyPairWindows"
+          }
+        ],
+        "Default": "createNewInstanceWithoutKeyPairWindows"
+      }
+    },
+    {
+      "name": "createNewInstanceWithKeyPairWindows",
+      "action": "aws:runInstances",
+      "maxAttempts": 3,
+      "timeoutSeconds": 1200,
+      "onFailure": "Abort",
+      "inputs": {
+        "ImageId": "{{ getAMIWindows.amiId }}",
+        "InstanceType": "{{ InstanceType }}",
+        "MinInstanceCount": 1,
+        "MaxInstanceCount": 1,
+        "IamInstanceProfileName": "{{ IamInstanceProfileName }}",
+        "KeyName": "{{ KeyPair }}",
+        "SubnetId": "{{ SubnetId }}",
+        "TagSpecifications": [
+          {
+            "ResourceType": "instance",
+            "Tags": [
+              {
+                "Key": "AWSEC2-SQLREPLATFORM-INSTANCE-KEY",
+                "Value": "AWSEC2-{{automation:EXECUTION_ID}}"
+              }
+            ]
+          }
+        ],
+        "BlockDeviceMappings": [
+          {
+            "DeviceName": "/dev/sda1",
+            "Ebs": {
+              "VolumeSize": "{{ DataDirectorySize }}"
+            }
+          }
+        ]
+      },
+      "nextStep": "getInstance"
+    },
+    {
+      "name": "createNewInstanceWithoutKeyPairWindows",
+      "action": "aws:runInstances",
+      "maxAttempts": 3,
+      "timeoutSeconds": 1200,
+      "onFailure": "Abort",
+      "inputs": {
+        "ImageId": "{{ getAMIWindows.amiId }}",
+        "InstanceType": "{{ InstanceType }}",
+        "MinInstanceCount": 1,
+        "MaxInstanceCount": 1,
+        "IamInstanceProfileName": "{{ IamInstanceProfileName }}",
+        "SubnetId": "{{ SubnetId }}",
+        "TagSpecifications": [
+          {
+            "ResourceType": "instance",
+            "Tags": [
+              {
+                "Key": "AWSEC2-SQLREPLATFORM-INSTANCE-KEY",
+                "Value": "AWSEC2-{{automation:EXECUTION_ID}}"
+              }
+            ]
+          }
+        ],
+        "BlockDeviceMappings": [
+          {
+            "DeviceName": "/dev/xvdb",
+            "Ebs": {
+              "VolumeSize": "{{ DataDirectorySize }}"
+            }
+          }
+        ]
+      },
+      "nextStep": "getInstance"
+    },
+    {
+      "name": "branchOnTargetOperatingSystem",
+      "action": "aws:branch",
+      "onFailure": "Abort",
+      "inputs": {
+        "Choices": [
+          {
+            "Variable": "{{ TargetOperatingSystem }}",
+            "StringEquals": "Linux",
+            "NextStep": "doesInstanceNeedToBeConfigured"
+          },
+          {
+            "Variable": "{{ TargetOperatingSystem }}",
+            "StringEquals": "Windows",
+            "NextStep": "doesInstanceNeedToBeConfiguredWindows"
+          }
+        ]
+      }
+    },
+    {
+      "name": "doesInstanceNeedToBeConfiguredWindows",
+      "action": "aws:branch",
+      "onFailure": "Abort",
+      "inputs": {
+        "Choices": [
+          {
+            "Not": {
+              "Variable": "{{ InstanceId }}",
+              "EqualsIgnoreCase": ""
+            },
+            "NextStep": "restoreToExistingEC2InstanceWindows"
+          }
+        ],
+        "Default": "restoreToNewInstanceWindows"
+      }
+    },
+    {
+      "name": "restoreToNewInstanceWindows",
+      "action": "aws:runCommand",
+      "timeoutSeconds": 18000,
+      "inputs": {
+        "DocumentName": "AWS-RunPowerShellScript",
+        "InstanceIds": [
+          "{{ getInstance.InstanceId }}"
+        ],
+        "Parameters": {
+          "commands": [
+            "Set-Location 'C:\\Program Files\\Amazon'",
+            "New-Item -Name SQLServerReplatform -ItemType directory",
+            "cd SQLServerReplatform",
+            "$currentDirectory = $(Get-Location).Path",
+            "Write-Host SSM current directory: $currentDirectory",
+            "Write-Host To view restore logs, go to: $currentDirectory\\runs\\{{automation:EXECUTION_ID}}\\log.txt",
+            "New-Item -Name Scripts -ItemType directory",
+            "$scriptsDirectory = Join-Path $currentDirectory Scripts",
+            "[void](new-object System.Net.WebClient).DownloadFile('https://s3-us-west-1.amazonaws.com/awsec2-server-upgrade-prod/SQLServerRestoreWindows.zip', \"$(Join-Path $scriptsDirectory SQLServerRestoreWindows.zip)\")",
+            "Expand-Archive -Path $(Join-Path $scriptsDirectory SQLServerRestoreWindows.zip) -DestinationPath $scriptsDirectory",
+            "$smoDirectory = Join-Path $scriptsDirectory SMODLL",
+            " .\\Scripts\\SQLServerRestoreWindows.ps1 -S3Input '{{ S3Input }}' -IsS3PresignedURL {{ IsS3PresignedURL }} -InstanceIsNew $true -RunningDirectory $currentDirectory -DatabaseNames {{ DatabaseNames }} -ExecutionId {{ automation:EXECUTION_ID }} -SmodllPath $smoDirectory -Os Windows",
+            "if ($(Test-Path $scriptsDirectory) -eq $True) { rm -r $scriptsDirectory }"
+          ],
+          "executionTimeout": "18000"
+        }
+      },
+      "isEnd": "true"
+    },
+    {
+      "name": "restoreToExistingEC2InstanceWindows",
+      "action": "aws:runCommand",
+      "timeoutSeconds": 18000,
+      "inputs": {
+        "DocumentName": "AWS-RunPowerShellScript",
+        "InstanceIds": [
+          "{{ InstanceId }}"
+        ],
+        "Parameters": {
+          "commands": [
+            "Set-Location 'C:\\Program Files\\Amazon'",
+            "if ($(Test-Path SQLServerReplatform) -eq $False) { New-Item -Name SQLServerReplatform -ItemType directory }",
+            "Set-Location SQLServerReplatform",
+            "$currentDirectory = $(Get-Location).Path",
+            "Write-Host SSM current directory: $currentDirectory",
+            "Write-Host To view restore logs, go to: $currentDirectory\\runs\\{{automation:EXECUTION_ID}}\\log.txt",
+            "if ($(Test-Path Scripts) -eq $True) { rm -r Scripts }",
+            "New-Item -Name Scripts -ItemType directory",
+            "$scriptsDirectory = Join-Path $currentDirectory Scripts",
+            "[void](new-object System.Net.WebClient).DownloadFile('https://s3-us-west-1.amazonaws.com/awsec2-server-upgrade-prod/SQLServerRestoreWindows.zip', \"$(Join-Path $scriptsDirectory SQLServerRestoreWindows.zip)\")",
+            "Expand-Archive -Path $(Join-Path $scriptsDirectory SQLServerRestoreWindows.zip) -DestinationPath $scriptsDirectory",
+            "$smoDirectory = Join-Path $scriptsDirectory SMODLL",
+            " .\\Scripts\\SQLServerRestoreWindows.ps1 -S3Input '{{ S3Input }}' -IsS3PresignedURL {{ IsS3PresignedURL }} -InstanceIsNew $false -RunningDirectory $currentDirectory -DatabaseNames {{ DatabaseNames }} -ExecutionId {{ automation:EXECUTION_ID }} -SmodllPath $smoDirectory -Os Windows",
+            "if ($(Test-Path $scriptsDirectory) -eq $True) { rm -r $scriptsDirectory }"
+          ],
+          "executionTimeout": "18000"
         }
       },
       "isEnd": "true"
@@ -466,8 +740,10 @@
   ],
   "outputs": [
     "getInstance.InstanceId",
-    "restoreToNewInstance.Output",
-    "restoreToExistingEC2Instance.Output",
-    "restoreToExistingManagedInstance.Output"
+    "restoreToNewInstanceLinux.Output",
+    "restoreToExistingEC2InstanceLinux.Output",
+    "restoreToExistingManagedLinuxInstance.Output",
+    "restoreToNewInstanceWindows.Output",
+    "restoreToExistingEC2InstanceWindows.Output"
   ]
 }
