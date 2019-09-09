@@ -21,7 +21,7 @@
     "GroupName": {
       "type": "String",
       "description": "(Required) Security Group Name to create.",
-      "default": "SSMSecurityGroupForLinuxInstances"
+      "default": "SSMSecurityGroupForWindowsInstances"
     },
     "InstanceType": {
       "type": "String",
